@@ -1,0 +1,602 @@
+'uScript Hypertext Processor
+'This function will process an HTML template giving uscript access to input variables
+' and create dynamic page content with db/dst/dct lookups.
+'-----------------------------------------------------------------------------------------
+'Fake Version String:
+'
+' version 1.0.0 9/2/2011 Tim Markello
+' Copyright 2011 Tim Markello timmarkello@gmail.com
+'
+'-----------------------------------------------------------------------------------------
+'General Use Info:
+'
+' Due to the nature of the variable mapping this function MUST be an include file. Moving
+'  this functionality to a library will break the variable mapping.
+'
+' This function uses the 'custom' attribute "uhp" to map the html values back to the
+'  uScript variables. The uhp attribute value must match a variable name defined in the
+'  main script that invokes this function or the value will be lost. Attribute to
+'  variable mapping is NOT case sensitive. 
+'   Example: 
+'     Template attribute: ... uhp="client" ...
+'     uScript: ... client is x ...
+' 
+' The HTML processing can parse attribute values wrapped with either a ' (single quote) 
+'  or a " (double quote) BUT the closing wrapper MUST MATCH the open wrapper
+'   Example: ... att='value' ... or ... att="value" ... *GOOD
+'            ... att="value' ... or ... att='value" ... **NO GOOD!!
+'
+' Any HTML tag that is not supported by uhp will be sent to the browser for display AS IS.
+'  This processor does not validate HTML other then the specific uhp tags.
+'
+'-----------------------------------------------------------------------------------------
+'UHP Tags
+'  
+'  <BODY>
+'     + creates the form to send to browser
+'     Attributes:
+'        Submitopt=<"on"/"off">
+'           + optional
+'           + adds the submit button to form or not
+'           + defaults to "on"
+'        SubmitLabel=<string>
+'           + optional
+'           + sets label of submit button to <string>
+'           + defaults to 'SUBMIT'
+'        CancelOpt=<"on"/"off">
+'           + optional
+'           + adds the cancel button to form or not
+'           + defaults to "on"
+'        CancelLabel=<string>
+'           + optional
+'           + sets label of cancel button to <string>
+'           + defaults to 'CANCEL'
+'        FormName=<string>
+'           + optional
+'           + sets formname to <string>
+'           + defaults to user id + time of execution
+'  <INPUT>
+'     Attributes:
+'        uhp=<string>
+'           + required
+'           + maps ui to uscript variable <string>
+'        type=<"textbox"/"submit"/"checkbox"/"radio">
+'           + required
+'           + determins the input control behavor
+'  <TEXTBOX>
+'  <TEXTBLOCK>
+'  <SELECT>
+'     <OPTION>
+'  <BLOCK>
+'  <LITERAL>
+'
+'-----------------------------------------------------------------------------------------
+'Due to recursion limitations inherent with uScript this function uses subroutines to
+' loop through the nested HTML tags in the template. Not pretty but it works.
+'
+'uhp recursion map
+'
+'start template file read
+'  |
+'  `-> Find HTML Tag <-.
+'  |     |             |
+'  |     `-> proc tag -'
+'  |
+'  `--> End of template file
+'---------------------------
+dynamic function uhp(uhp.path) is b
+ 'template file variables
+uhp.path       is x     'path of the html template for processing
+uhp.handle     is b
+uhp.line       is x
+ 'uscript html control variables
+varptr         is b
+copyptr        is b
+varlist[]      is x
+control[,]     is x     'generic internal uhp variable for storing html control values
+mapFlag[]      is x     'flags position of mainscript variables for mapping UI
+idxptr         is b
+formName       is x
+ 'template parsing variables
+openTag        is x
+openptr        is b
+closeptr       is b
+taglen         is b
+tagtype        is x
+tagatts        is x
+tagptr         is b
+tagend         is x     'character that ends the current tag: indicates if the tag is standalone (... />) or contains children (... >)
+notag          is x     'not a uhp tag - sent to browser as is read from template
+attName[]      is x
+attValue[]     is x
+inputMap       is x
+inputType      is x
+value[]        is x
+label[]        is x
+ 'uhp recursion variables
+parenttag[]    is x
+parentAtt[]    is x
+parentptr      is b
+ 'dst processing variables
+dstinfo[]      is x
+fakerecord     is h
+fakedst        is v
+ 'misc/temp counters/strings 
+i              is b
+tempNum        is b
+temp[]         is x
+string         is x
+loopcount      is b
+looplimit      is b
+'-----------------------------------
+'MAIN:
+'-----------------------------------
+$clear(uhp.handle, uhp.line, varptr, control[], temp[], string)
+'save off the loops variables
+loopcount = $loopcount
+looplimit = $looplimit
+$loopcount = 0
+$looplimit = 9999 'change to 0?
+'open and process template
+uhp.handle = $fileavail()
+if $openfile(uhp.handle, uhp.path, "I") > 0 then
+   uhp = 1
+   return
+endif
+do while $readfile(uhp.handle, uhp.Line) = 0
+   closeptr = 1
+   gosub _TAGFIND
+enddo
+(void)$closefile(uhp.handle)
+'map variables back to main script
+gosub _MAP
+'reset looplimits
+$looplimit = looplimit
+$loopcount = loopcount
+'-------------------------------------
+' return control back to main script
+'-------------------------------------
+return
+'-------------------------------------
+' Subroutines after this point
+'-------------------------------------
+' Find the next uhp tag to process
+'-------------------------------------
+_TAGFIND:
+   openptr = $find("<", uhp.line, closeptr, "F")
+   do while openptr = 0
+      openptr = $len(uhp.line)
+      if openptr > closeptr then
+         i = openptr - closeptr + 1
+         notag = $seg(uhp.line, closeptr, i)
+         $ctag(notag)
+      endif
+      closeptr = 1
+      if $readfile(uhp.handle, uhp.line) > 0 then
+         uhp = 2
+         return
+      endif
+      openptr = $find("<", uhp.line, closeptr, "F")
+   enddo
+   if openptr > closeptr then
+      i = openptr - closeptr 
+      notag = $seg(uhp.line, closeptr, i)
+      $ctag(notag)
+   endif
+   $clear(opentag)
+   do while openptr < $len(uhp.line)
+      closeptr = $find(">", uhp.line, openptr, "F")
+      do while closeptr = 0
+         openTag += $seg(uhp.line, openptr)
+         openptr = 1
+         if $readfile(uhp.handle, uhp.Line) > 0 then
+            uhp = 2
+            return
+         endif
+         closePtr = $find(">", uhp.line, openptr, "F")
+      enddo
+      taglen = closeptr - openptr + 1
+      openTag += $seg(uhp.line, openptr, taglen)
+      gosub _TAGPROC
+      if closeptr >= $len(uhp.line) then 
+         'do nothing
+      else
+         closeptr++
+         gosub _TAGFIND
+      endif
+      openptr = $len(uhp.line)
+   enddo
+goback
+
+
+'-------------------------------------
+' Process the uhp tag
+'-------------------------------------
+_TAGPROC:
+   tagptr = 2
+   tagType = $parse(opentag, tagptr, " >")
+   tagAtts = $parse(opentag, tagptr, "/>")
+   if $find("/", opentag, 1, "F") > 0 then
+      tagend = "/"
+   else
+      tagend = ">"
+   endif
+   select $uc(tagtype)
+      case "HTML"
+        or "/HTML"      'do nothing
+      case "HEAD"       'do nothing
+        or "/HEAD"      'do nothing
+      case "!--"        'do nothing
+      case "BODY"       gosub _BODYTAG
+      case "/BODY"      $sendform(formName)
+      case "TEXTBOX"    gosub _TEXTBOX
+      case "TEXTBLOCK"  gosub _TEXTBLOCK
+      case "SELECT"     gosub _DROPBOX
+      case "OPTION"     gosub _DROPBOXOPT
+      case "INPUT"      gosub _INPUT
+      case "BLOCK"      gosub _BLOCK
+      case "/BLOCK"     gosub _ENDBLOCK
+      case "LITERAL"    gosub _LITERAL
+      case other        $ctag(opentag)
+                        tagend = "/"
+   endselect
+   'go find the child tags if there are some
+   if tagEnd = ">" then
+      parentTag[++parentptr] = opentag
+      parentAtt[parentptr] = tagAtts
+      closePtr++
+      gosub _TAGFIND
+      opentag = parentTag[parentptr]
+      tagAtts = parentAtt[parentptr]
+      (void)$arrRemove(parentTag[parentptr])
+      (void)$arrRemove(parentAtt[parentptr])
+      --parentptr
+   endif
+
+goback
+
+'-------------------------------------
+' the uhp input tag
+'-------------------------------------
+_INPUT:
+   getAtts(tagatts, attName[], attValue[])
+   tagptr = $find("TYPE", attName[], 1, "F")
+   inputtype = $uc(attValue[tagptr])
+   tagptr = $find("UHP", attName[], 1, "F")
+   inputMap = $uc(attValue[tagptr])
+   varptr = findVar(inputMap, varlist[])
+   idxPtr = $find("IDX", attName[], 1, "F")
+   if varptr > 0 then
+      mapflag[varptr] = "Y"
+      copyptr = $varptr(temp[])
+      (void)$copyvar(varptr, copyptr)
+      if idxptr > 0 then
+         if $num(attValue[idxptr]) dp then
+            idxPtr = $num(attValue[idxPtr])
+         else
+            idxPtr = $find(attValue[idxptr], temp[], 1, "F")
+            if idxPtr = 0 then
+               idxPtr = $maxarray(temp[]) + 1
+            endif
+         endif
+      endif
+         if idxPtr > 0 then
+            control[varptr,idxPtr] = temp[idxPtr]
+         else
+            control[varptr] = temp[]
+         endif
+   endif
+   select $uc(inputtype)
+      case "TEXT"    tagPtr = $find("DCT", attName[], 1, "F")
+                     if tagPtr > 0 then
+                        string = $dct(control[varptr], attName[tagPtr], "D")
+                     else
+                        string = control[varptr]
+                     endif
+                     $text(string)
+      case "TEXTBOX" gosub _TEXTBOX 
+      case "BLOCK"   $textblock(control[varptr])
+      case "SUBMIT"  tagPTr = $find("VALUE", attName[], 1, "F")
+                     $submit(control[varptr], attValue[tagptr])
+      case "RADIO"   
+        or "CHECKBOX"   tagPtr = $find("DCT", attName[], 1, "F")
+                        if tagPtr > 0 then
+                           tempNum = $num(AttValue[tagptr])
+                           (void)$dctload(tempNum, value[], label[])
+                           i = 0
+                           do while i++ < $maxarray(value[])
+                              if inputtype = "RADIO" then
+                                 $radio(control[varptr], label[i], value[i])
+                              else
+                                 $checkbox(control[varptr,i], label[i], value[i])
+                              endif
+                           enddo
+                        else
+                           tagPtr = $find("VALUE", attName[], 1, "F")
+                           if tagPtr > 0 then
+                              value[idxptr] = attValue[tagptr]
+                           endif
+                           tagPtr = $find("LABEL", attName[], 1, "F")
+                           if tagPtr > 0 then
+                              label[idxptr] = attValue[tagptr]
+                           endif
+                           if value[idxptr] dp then
+                              string = $uc(inputMap) + "-" + $uc(value[idxptr])
+                              if inputtype = "RADIO" then
+                                 $radio(control[varptr,idxptr], label[idxptr], value[idxptr],,,string,string)
+                              else
+                                 $checkbox(control[varptr,idxptr], label[idxptr], value[idxptr],,,string,string)
+                              endif
+                           endif
+                        endif
+   endselect
+goback
+
+'-------------------------------------
+' the uhp select/drop down list tag
+'-------------------------------------
+_DROPBOX:
+   getAtts(tagatts, attName[], attValue[])
+   tagptr = $find("UHP", attName[], 1, "F")
+   inputMap = $uc(attValue[tagptr])
+   varptr = findVar(inputMap, varlist[])
+   idxPtr = $find("IDX", attName[], 1, "F")
+   idxPtr = $num(attValue[idxPtr])
+   if varptr > 0 then
+      mapFlag[varptr] = "Y"
+      copyptr = $varptr(temp[])
+      (void)$copyvar(varptr, copyptr)
+      control[varptr] = temp[]
+   endif
+   tagptr = $find("DCT", attName[], 1, "F")
+   if tagptr > 0 then
+      tempnum = $num(attValue[tagptr])
+      (void)$dctload(tempNum, value[], label[])
+      i = 0
+      do while i++ < $maxarray(value[], label[])
+         string = $uc(inputMap) + "-" + $uc(value[i])
+         $dropbox(control[varptr,idxPtr], label[i], value[i],,,string, string)
+      enddo
+   endif
+goback
+
+'-------------------------------------
+' the uhp drop down list option tag
+'-------------------------------------
+_DROPBOXOPT:
+   $clear(temp[])
+   getAtts(tagatts, attName[], attValue[])
+   i = 0
+   do while i++ < $maxarray(attName[])
+      select $uc(attName[i])
+         case "VALUE"   temp[1] = attValue[i]
+         case "LABEL"   temp[2] = attValue[i]
+      endselect
+   enddo
+   string = $uc(inputMap) + "-" + $uc(temp[1])
+   $dropbox(control[varptr,idxptr], temp[2], temp[1],,,string,string)
+goback
+
+'-------------------------------------
+' the uhp hidden block open tag
+'-------------------------------------
+_BLOCK:
+   getAtts(tagatts, attName[], attValue[])
+   tagptr = $find("UHP", attName[], 1 ,"F")
+   temp[1] = attValue[tagptr]
+   tagptr = $find("VALUE", attName[], 1, "F")
+   temp[2] = attValue[tagptr]
+   string = $uc(temp[1]) + "-" + $uc(temp[2])
+   $block(string,string)
+goback
+
+'-------------------------------------
+' the uhp hidden block close tag
+'-------------------------------------
+_ENDBLOCK:
+   getAtts(tagatts, attName[], attValue[])
+   tagptr = $find("UHP", attName[], 1 ,"F")
+   temp[1] = attValue[tagptr]
+   tagptr = $find("VALUE", attName[], 1, "F")
+   temp[2] = attValue[tagptr]
+   string = temp[1] + "-" + temp[2]
+   $endblock(string,string)
+goback
+
+'-------------------------------------
+' the uhp body tag
+'-------------------------------------
+_BODYTAG:
+   'parse the tagatts
+   getAtts(tagatts, attName[], attValue[])
+   i = 0
+   do while i++ < $maxarray(attName[])
+      select $uc(attName[i])
+         case "SUBMITOPT"     temp[1] = attValue[i]
+         case "SUBMITLABEL"   temp[2] = attValue[i]
+         case "CANCELOPT"     temp[3] = attValue[i]
+         case "CANCELLABEL"   temp[4] = attValue[i]
+         case "NAME"          formName = attValue[i]
+         case other
+      endselect
+   enddo
+   if formname !dp then
+      formname = $oper + $timenow
+   endif
+   if temp[1] !dp then
+      temp[1] = "off"
+   endif
+   if temp[3] !dp then
+      temp[3] = "off"
+   endif
+   if temp[2] !dp then
+      temp[2] = "Submit"
+   endif
+   if temp[4] !dp then
+      temp[4] = "Cancel"
+   endif
+   $submitopt(temp[1], temp[2])
+   $cancelopt(temp[3], temp[4])
+   $form(formName)
+goback
+
+'-------------------------------------
+' the uhp textbox tag
+'-------------------------------------
+_TEXTBOX:
+   getAtts(tagatts, attName[], attValue[])
+   $clear(temp[])
+   i = 0
+   do while i++ < $maxarray(attName[])
+      select $uc(attName[i])
+         case "UHP"        varptr = findVar(attValue[i],varlist[])
+                           if varptr > 0 then
+                              mapFlag[varptr] = "Y"
+                              copyptr = $varptr(string)
+                              (void)$copyvar(varptr, copyptr)
+                              control[varptr] = string
+                           endif
+         case "EDIT"       temp[2] = attValue[i]
+         case "LABEL"      temp[1] = attValue[i]
+      endselect
+   enddo
+   $text(temp[1])
+   $textbox(control[varptr], temp[2])
+goback
+
+'-------------------------------------
+' the uhp textblock tag
+'-------------------------------------
+_TEXTBLOCK:
+   getAtts(tagatts, attName[], attValue[])
+   $clear(temp[])
+   i = 0
+   do while i++ < $maxarray(attName[])
+      select $uc(attName[i])
+         case "UHP"        varptr = findVar(attValue[i],varlist[])
+                           if varptr > 0 then
+                              mapFlag[varptr] = "Y"
+                              copyptr = $varptr(string)
+                              (void)$copyvar(varptr, copyptr)
+                              control[varptr] = string
+                           endif
+         case "LABEL"      temp[1] = attValue[i]
+         case "COL"        temp[2] = attValue[i]
+         case "ROW"        temp[3] = attValue[i]
+         case "LIMIT"      temp[4] = attValue[i]
+         case "CLASS"      temp[5] += "class='" + attValue[i] + "' "
+      endselect
+   enddo
+   $text(temp[1])
+   $textblock(control[varptr], $num(temp[3]), $num(temp[2]), temp[5],,$num(temp[4])) ', temp[2])
+goback
+
+'-------------------------------------
+' the uhp literal tag
+'-------------------------------------
+_LITERAL:
+   $clear(temp[])
+   getAtts(tagatts, attName[], attValue[])
+   i = 0
+   do while i++ < $maxarray(attName[])
+      select $uc(attName[i])
+         case "EDITTYPE"   temp[1] = attValue[i]
+         case "EDITNUM"    temp[2] = attValue[i]
+         case "VALUE"      temp[3] = attValue[i]
+         case "CLASS"      temp[4] = attValue[i]
+         case "OPTION"     temp[5] = attValue[i]
+      endselect
+   enddo
+   varptr = findVar(temp[3], varlist[])
+   if varptr > 0 then
+      copyptr = $varptr(string)
+      (void)$copyvar(varptr,copyptr)
+   else
+      string = temp[3]
+   endif
+   select temp[1]
+      case "DB"      (void)$dbalpha($num(temp[2]), string, string)
+      case "DCT"     string = $dct($num(temp[2]), string, temp[5])
+      case "DST"     (void)$dstinfo(temp[2], dstinfo[])
+                     $setvarname(fakedst, temp[2])
+                     $setvartype(fakedst, dstinfo[5])
+                     if dstinfo[16] dp then     'this is a record dst
+                        $setvarname(fakerecord, dstinfo[16])
+                        (void)$dbread($num(dstinfo[4]), string, fakerecord, fakedst)
+                     else
+                        (void)$dbread($num(dstinfo[4]), string, fakedst)
+                     endif
+                     string = fakedst
+   endselect
+   $text(string, temp[5])
+goback
+
+'-------------------------------------
+' the variable mapping routine
+'-------------------------------------
+_MAP:
+   copyptr = $varptr(temp[])
+   'varptr = 1
+   varptr = $find("Y", mapFlag[], 1, "F")
+   do while varptr > 0
+      $clear(temp[])
+      temp[] = control[varptr]
+      (void)$copyvar(copyptr, varptr)
+      varptr = $find("Y", mapFlag[], ++varptr, "F")
+   enddo
+goback
+
+end uhp
+'-------------------------------------
+' support functions after this point
+'-------------------------------------
+' put uhp tag attributes and values 
+' into arrays
+'-------------------------------------
+dynamic function getAtts(attString, name[], value[]) is null
+attString   is x
+name[]      is x
+value[]     is x
+
+attList[]   is x
+i           is b
+cnt         is b
+wrapper     is x
+$clear(name[], value[])
+$allowupdate(name[], value[])
+i = 0
+do while i < $len(attString)
+   name[++cnt] = $parse(attString, i, "=")
+   name[cnt] = $trim(name[cnt])
+   name[cnt] = $uc(name[cnt])
+   attString = $seg(attString, i)
+   attString = $trim(attString)
+   i = 1
+   wrapper = $charx(attString, i)
+   value[cnt] = $parse(attString, ++i, wrapper)
+enddo
+end getAtts
+
+'-------------------------------------
+' return the variable pointer for var
+' name
+'-------------------------------------
+dynamic function findVar(varname, varlist[]) is b
+varname     is x
+varlist[]   is x
+varptr      is b
+$allowupdate(varlist[])
+varname = $uc(varname)
+varptr = $find(varname, varlist[], 1, "F")
+if varptr = 0 then
+   varptr = $maxarray(varlist[])
+endif
+do while varlist[varptr] != varname
+   (void)$getvar(++varptr,,,,varlist[varptr])
+   if varlist[varptr] !dp then
+      $clear(findvar)
+      return
+   endif
+enddo
+findvar = varptr
+end findVar
