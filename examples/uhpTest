@@ -1,0 +1,43 @@
+start uhpTest(formpath)
+
+formpath    is x
+string      is x
+test        is x
+test.label  is x
+myRdo       is x
+newRdo      is x
+mychx[]     is x
+b_myBtn     is x
+b_kill      is x
+hiddenChx   is x
+myDDL       is x
+myDDLdct    is x
+myDDL.1.label  is x
+%include inc_sysLibDef
+test = "default"
+myRdo = "Y"
+do while 1 = 1
+   $clear($endbutton, b_myBtn)
+   if formpath !dp then 
+      formpath = "/c0/test/uhpTest.html"
+   endif
+   uhp(formpath)
+   select $endbutton
+      case "SUBMIT"  $brmsg(formpath, 1, "WE")
+                     return
+      case "CANCEL"  return
+      case other
+         select "Y"
+            case b_myBtn   string = "you click the input submit button"
+                           test.label = "NULL"
+                           myDDL.1.label = "I change this"
+            case b_kill    return
+            case other     return
+         endselect
+   endselect
+   $brmsg(string, 1, "WEC")
+enddo
+
+end uhpTest
+
+%include inc_uhp

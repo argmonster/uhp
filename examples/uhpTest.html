@@ -1,0 +1,36 @@
+<html>
+<head>
+</head>
+<body submitlabel='changed on template' >
+<h3>Here is some html text</h3>
+<br />
+<input type="submit" uhp="b_kill" value="kill"/>
+<br />
+<input type='text' uhp='TEST' label='here is some label' edit='CAL' />
+<br />
+<input type="radio" uhp="myrdo" dct="36" />
+<br />
+<input type="checkbox" uhp="mychx" dct="11" />
+<br />
+<input type="submit" uhp="b_mybtn" value="test submit"/>
+<br />
+<input type="radio" uhp="newrdo" value="1" label="This is the templete defined radio" />
+<br />
+<input type="radio" uhp="newrdo" value="2" label="This is the second one" />
+   <block uhp="newrdo" value="2" >
+      <input type="checkbox" uhp="hiddenchx" value="hide" label="an inner checkbox" />
+      <block uhp="hiddenchx" value="hide" >
+         some hidden text 
+      </block>
+   </block>
+<br />
+<select uhp='myDDL'>
+   <option label='' value='' />
+   <option uhp='1' label='test option 1' value='1' />
+   <option uhp='2' label='test option 2' value='2' />
+</select>
+<br />
+<select uhp='myDDLdct' dct='12' />
+<snap formid='PROGNOTE' regid='client' dbnum='2' />
+</body>
+</html>
