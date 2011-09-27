@@ -19,6 +19,8 @@
 ' + New Tags:
 '  + <print />
 '  + <snap />
+' Tim 9/27/11 .1 *bug fix found by Ralph W.
+' + added $uc when comparing input type to ensure correct comparison.
 '
 '-----------------------------------------------------------------------------------------
 'General Use Info:
@@ -320,7 +322,6 @@ _TAGPROC:
                         tagend = "/"
       case "TEXTBLOCK"  gosub _TEXTBLOCK
       case "SELECT"     gosub _DROPBOX
-      'case "/SELECT"    'close the tag
       case "OPTION"     gosub _DROPBOXOPT
       case "INPUT"      gosub _INPUT
       case "BLOCK"      gosub _BLOCK
@@ -354,7 +355,7 @@ goback
 ' the uhp input tag
 '-------------------------------------
 _INPUT:
-   $clear(temp[])
+   $clear(temp[], inputtype)
    getAtts(tagatts, attName[], attValue[])
    inputtype = getAttVal("TYPE", attName[], attValue[], varlist[])
    inputMap = getAttVal("UHP", attName[], attValue[], varlist[])
@@ -420,7 +421,7 @@ _INPUT:
                         endif
                         do while i < tempNum
                            string = $uc(inputMap) + "-" + $uc(value[i]) + "-" + i
-                           if inputtype = "RADIO" then
+                           if $uc(inputtype) = "RADIO" then
                               $radio(control[varptr,idxptr], label[i], value[i],,,string,string)
                            else
                               $checkbox(control[varptr,idxptr], label[i], value[i],,,string,string)
@@ -750,6 +751,7 @@ varlist[]   is x
 uhp      is x
 temp[]   is x
 i        is b
+j        is b
 copyptr  is b
 $clear(uhp, temp[], i , copyptr, getAttVal[])
 $allowupdate(varlist[])
@@ -772,7 +774,10 @@ if i > 0 then
          if $uc(temp[]) = "NULL" then
             $clear(temp[])
          endif
-         getAttVal[] = temp[]
+         i = $find("IDX", name[], 1, "F")
+         if i > 0 then
+            getAttVal[i] = temp[i]
+         endif
       endif
    endif
 endif
