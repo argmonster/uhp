@@ -1,0 +1,125 @@
+library uhp_recordDisplay()
+
+_regid  is x
+_dstHead is x
+_dstlist[]  is x
+_dstname[]  is x
+_dstedit[]  is x
+_dstvals[,]  is x
+_list          is dstlist
+_layer         is b
+_db            is b
+_id            is x
+
+'uhp-note vars
+_b_sumbit[]   is x
+_addptr     is b
+_finalptr   is b
+_d-lib      is b
+
+%global _regid, _dstHead, _dstlist[], _dstname, _dstvals[], _dstedit
+%global _list, _db, _d-lib, _id
+
+on load do:
+   (void)$loadlib(_d-lib, "lib_DST")
+return
+
+public dynamic function render(args[] vals[])[] is x
+args[]      is x
+vals[]      is x
+i           is b
+j           is b
+string       is x
+temp[]      is x
+argproc(args[],vals[])
+if _id !dp then _id = $mylibhandle endif
+(void)$arrpush(temp[], `"<table id='" + _id + "' class='recordDisplay'>"`)
+'header row
+string = "<tr id='" + _id + "-head' class='recordHead'>"
+i = 0
+do while i++ < $maxarray(_dstname[])
+   string += "<td id='" + _id + "-header-" + i + "'>" + _dstname[i] + "</td>"
+enddo
+string += "</tr>"
+(void)$arrpush(temp[], string)
+'detail rows
+i = 0
+do while i++ < $maxarray(_dstlist[], _dstvals[])
+   string = "<tr id='" + _id + "-" + i + "' class='recordDetail'>"
+   j = 0
+   do while j++ < $maxarray(_dstvals[i])
+      string += "<td id='" + _id + "-" + i + "-" + j + "'>" + _dstvals[i,j] + "</td>"
+   enddo
+   string += "</tr>"
+   (void)$arrpush(temp[], string)
+enddo
+(void)$arrpush(temp[],"</table>")
+render[] = temp[]
+end render
+
+public dynamic function argproc(args[], vals[]) is null
+args[]   is x
+vals[]   is x
+arg      is x
+xidx     is x
+idx      is b
+i        is b
+i = 0
+do while i++ < $maxarray(args[], vals[])
+   $parsem(args[i], 1, "-", arg, xidx)
+   select $uc(arg)
+      case  "ID"       _id = vals[i]
+      case  "REGID"    if _regid != vals[i] then
+                           _regid = vals[i]
+                        endif
+      case  "REC"       if _dstHead != $uc(vals[i]) then
+                           _dstHead = $uc(vals[i])
+                        endif
+      case  "DST"       if xidx dp then
+                           idx = $num(xidx)
+                        else
+                           idx = $maxarray(_dstlist[]) + 1
+                        endif
+                        _dstlist[idx] = vals[i]
+      case  "LABEL"     if xidx dp then
+                           idx = $num(xidx)
+                        else
+                           idx = $maxarray(_dstname[]) + 1
+                        endif
+                        _dstname[idx] = vals[i]
+      case  "EDIT"      if xidx dp then
+                           idx = $num(xidx)
+                        else
+                           idx = $maxarray(_dstedit[]) + 1
+                        endif
+                        _dstedit[idx] = vals[i]
+      case  "LAYER"     _layer = $num(vals[i])
+         
+   endselect
+enddo
+   rec.get()
+   rec.read()  
+end argproc
+
+public dynamic function rec.get() is b
+headno   is b
+db[]     is b
+if _dstHead dp then
+   headno = $dstnumber(_dstHead)
+   rec.get = $dsttoarray(,headno,,,_dstlist[],_dstname[],db[])
+   _db = db[1]
+'else
+'   _dstHead = $myLibHandle
+endif
+end rec.get
+
+public dynamic function rec.read() is b
+rc       is b
+i        is b
+rc = _d-lib:read(_regid,_dstlist[])
+do while rc < 2
+   _dstvals[++i] = _d-lib:dst(_dstlist[])[]
+   rc = _d-lib:nextrec(_db, _regid, _list)
+enddo
+rec.read = i
+end rec.read
