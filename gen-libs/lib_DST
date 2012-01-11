@@ -1,0 +1,242 @@
+'library for handling db reading with a dstlist
+'Author: Tim Markello
+'  Date: 3/21/2011library lib_DST()
+'
+'------------------------------------------------
+' Modifications:
+'
+' TJM 12/14/11 .001
+'  ~ changed dst() to loop through all passed dst names 
+'     to insert values in the correct location
+'  + added dst[] argument to read() so that setDsts() does
+'     not have to be called seperately
+'  + lock option added to read(), next() and nextrec() to
+'     lock the db while reading
+'  + New Functions
+'     + put() inserts new values into dst list
+'     + add() adds new layer to db
+'     + unlock() $dbunlock()
+'------------------------------------------------
+'Benefits to using this lib over simple dbreads
+' 1. check() will verify the list of dsts are valid
+'    dsts to your system. AND insert record header
+'    dsts into the list.
+'    This means main script / programmer / parm configuration
+'    does not need to worry about record headers - just
+'    the dsts important to the script
+' 2. dst(name) will return the dst value for argument 'name'
+'    If using a dst list in main script it would have to
+'    have some kind of lookup based on the list index to
+'    find the needed value.
+' 3. db, read registers, list var, list values, and list effdates
+'    do not have to be declaired in the main script.
+'
+'****TO USE:
+'    The dst list must be set by calling setDsts() or list() functions
+'    with the dst[] argument present BEFORE calling any read functions
+'****
+'
+'TO DO:
+'    - Figure out some way to write the data in a useful way.
+'------------------------------------------------------------------------
+
+%version 01.0.000 03/21/11 GCC
+
+library lib_DST()
+
+on load do:
+   
+   _masterList     is dstlist
+   _masterDsts[]   is x
+   _masterValues[] is x
+   _masterEffdate[]  is d
+   
+   %global _masterList, _masterDsts[], _masterValues[], _masterEffdate[]
+   
+   _masterReg     is x
+   _masterDB      is b
+   
+   %global _masterReg, _masterDB
+   
+   _masterCnt     is b
+   
+   %global _masterCnt
+   
+return
+
+'-------------------------------------------------
+public dynamic function setDsts(dsts[]) is null
+dsts[]   is x
+_masterDsts[] = check(dsts[])[]
+_masterCnt = $maxarray(_masterDsts[])
+list()
+end setDsts
+
+'-------------------------------------------------
+public dynamic function setReg(register) is null
+register is x
+_masterReg = register
+(void)$dbstart(_masterDB, _masterReg)
+end setReg
+
+
+'-------------------------------------------------
+public dynamic function check(dsts[])[] is x
+dsts[]         is x
+i              is b
+j              is b
+temp[]         is x
+dstInfo[]      is x
+'$allowupdate(dsts[])
+$clear(temp[])
+(void)$sortu(dsts[],"D")
+i = 0
+do while i++ < $maxarray(dsts[])
+   if $dstinfo($uc(dsts[i]),dstinfo[]) = 0 then
+      _masterDB = $num(dstinfo[4])
+      'check to see if the record head is present
+      if dstInfo[16] dp then
+         j = $find(dstInfo[16], temp[], 1, "F")
+         if j = 0 then
+            'add the records head if it is missing
+            (void)$arrPush(temp[], dstInfo[16])
+            j = $maxarray(temp[])
+         endif
+         (void)$arrInsert(temp[++j], `$uc(dsts[i])`)
+      else
+         (void)$arrInsert(temp[1], `$uc(dsts[i])`)
+      endif
+   else
+      'allow user to remap??
+'      $clear(dstlist[i])
+   endif
+enddo
+'i = 0
+'do while i++ < $maxarray(temp[])
+'   check[i] = temp[i]
+'enddo
+check[] = temp[]
+end check
+
+
+'-------------------------------------------------
+public dynamic function list(dsts[], values[], effdates[]) is b
+dsts[]      is x
+values[]    is x
+effdates[]  is d
+
+if dsts[] dp then setDsts(dsts[]) endif
+
+list = $dstlist( _masterList, _masterDb,_masterDsts[], _masterValues[], _masterEffdate[])
+
+end list
+
+
+'-------------------------------------------------
+public dynamic function read(register,dst[],lock) is b
+register    is x
+dst[]       is x
+lock        is x
+
+if register dp then setReg(register) endif
+
+if _masterReg !dp then (void)$dbstart(_masterDB, _masterReg) endif
+
+if dst[] dp then setDsts(dst[]) endif
+
+if lock = "Y" then $dblock() endif 
+
+read = $dbread(_masterDB, _masterReg, _masterList)
+end read
+
+'-------------------------------------------------
+public dynamic function next(lock) is b
+lock        is x
+
+if lock = "Y" then $dblock() endif 
+next = $dbreadnext(_masterDB, _masterReg, _masterList)
+end next
+
+'-------------------------------------------------
+public dynamic function nextRec(lock) is b
+lock        is x
+
+if lock = "Y" then $dblock() endif 
+nextRec = $dbreadnextdst(_masterDB, _masterReg, _masterList)
+end nextRec
+
+'-------------------------------------------------
+public dynamic function unlock() is null
+$dbunlock()
+end unlock
+
+'-------------------------------------------------
+public dynamic function reg() is x
+reg = _masterReg
+end reg
+
+'-------------------------------------------------
+public dynamic function add(register,dst[],value[]) is b
+register    is x
+dst[]       is x
+value[]     is x
+
+if register dp then
+   setReg(register)
+endif
+if dst[] dp and value[] dp then
+   put(dst[], value[])
+endif
+
+$dblock()
+(void)$dbpoint(_masterDB, _masterReg)
+add = $dbadddst(_masterDB, _masterReg,_masterLIst)
+
+end add
+
+
+'-------------------------------------------------
+public dynamic function put(dst[],value[]) is null
+dst[]       is x
+value[]     is x
+i           is b
+ptr         is b
+
+i = 0
+do while i++ < $maxarray(dst[])
+   ptr = $find($uc(dst[i]), _masterDsts[], 1, "F")
+   if ptr > 0 then
+      _masterValues[ptr] = value[i]
+   endif
+enddo
+end put
+
+'-------------------------------------------------
+public dynamic function dst(dstname[])[] is x
+dstname[]   is v
+'myVal       is x
+i           is b
+j           is b
+
+'if $argusage(dstname[]) = 3 then
+'   dst[] = _masterValues[]
+'   return
+'endif
+i = $find(`$varname(dstname[])`, _masterDsts[],1,"F")
+if i > 0 then 
+   dst[1] = _masterValues[i] 
+else
+   j = 0
+   do while j++ < $maxarray(dstname[])
+      i = $find($uc(dstname[j]), _masterDSTs[], 1, "F")
+      if i > 0 then
+         if _masterValues[i] dp then
+            dst[j] = _masterValues[i]
+         endif
+      endif
+   enddo
+endif
+'i = $find(dstname[1], _masterDSTs[], 1, "F")
+'if i > 0 then myVal = _masterValues[i] endif
+'dst[1] = myVal
+end dst
