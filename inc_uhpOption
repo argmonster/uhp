@@ -1,0 +1,63 @@
+'uhp include file
+dynamic function uhp_Option(uhp.path) is b
+uhp.path       is x
+openptr        is b
+tagname        is x
+tagvalue       is x
+uhp.temp       is x
+perlcmd        is x
+unixcmd        is x
+opts[]         is x
+copy[,]        is x
+copyptr        is b
+varptr         is b
+varlist[]      is x
+idx            is b
+xidx           is x
+idx2           is b
+xidx2          is x
+'perl option:
+if $tempfile(uhp.temp) > 0 then
+   uhp_option = 11
+endif
+perlcmd = "cat $1 | perl -e 'undef $/; while(<>){m/<parm>(.*)<\/parm/s && print $1.chr(10)};' | perl -ne 'm/<(.*)>(.*)<\/\1/ && print $1.chr(124).$2.chr(10)'"
+if $putfile(perlcmd, uhp.temp) > 0 then
+   uhp_option = 22
+endif
+unixcmd = "chmod +x " + uhp.temp
+if $unix(unixcmd) > 0 then
+   uhp_option = 44
+endif
+unixcmd = uhp.temp + " " + uhp.path
+if $unix(unixcmd, opts[]) > 0 then
+   uhp_option = 33
+endif
+openptr = 0
+do while openptr++ < $maxarray(opts[])
+   $parsem(opts[openptr],1,"|",tagname, tagvalue)
+   $parsem(tagname, 1, "-", tagname, xidx, xidx2)
+   $clear(idx,idx2,copy[])
+   if xidx !dp and xidx2 dp then
+      idx = $num(xidx2)
+   elseif xidx dp and xidx2 !dp then
+      idx = 1
+      idx2 = $num(xidx)
+   else
+      idx = $num(xidx)
+      idx2 = $num(xidx2)
+   endif
+   if $charx(tagvalue,1) = "$" then
+      select $uc(tagvalue)
+         case "$TODAY"        tagvalue = $today
+         case "$TIMENOW"      tagvalue = $timenow
+         case "$OPER"         tagvalue = $oper
+         case "$OPERSTAFFID"  tagvalue = $operstaffid
+      endselect
+   endif
+   varptr = findvar(tagname, varlist[])
+   copyptr = $varptr(copy[])
+   (void)$copyvar(varptr, copyptr)
+   copy[idx,idx2] = tagvalue
+   (void)$copyvar(copyptr, varptr)
+enddo   
+end uhp_option
