@@ -1,24 +1,30 @@
 library uhp_recordDisplay()
 
-_regid  is x
-_dstHead is x
-_dstlist[]  is x
-_dstname[]  is x
-_dstedit[]  is x
-_dstvals[,]  is x
+_regid         is x
+_dstHead       is x
+_dstname[]     is x
+_dstlabel[]    is x
+_dstedittype[] is x
+_dsteditnum[]  is x
+_dstvals[,]    is x
 _list          is dstlist
 _layer         is b
 _db            is b
 _id            is x
+_re-render     is x
+_render[]      is x
 
+_varlist[]     is x
+_varlistptr    is b
 'uhp-note vars
-_b_sumbit[]   is x
-_addptr     is b
-_finalptr   is b
-_d-lib      is b
+_b_sumbit[]    is x
+_addptr        is b
+_finalptr      is b
+_d-lib         is b
 
-%global _regid, _dstHead, _dstlist[], _dstname, _dstvals[], _dstedit
-%global _list, _db, _d-lib, _id
+%global _regid, _dstHead, _dstlabel, _dstname, _dstvals[], _dstedittype, _dsteditnum
+%global _list, _db, _d-lib, _id, _re-render, _render
+%global _varlist, _varlistptr
 
 on load do:
    (void)$loadlib(_d-lib, "lib_DST")
@@ -30,75 +36,86 @@ vals[]      is x
 i           is b
 j           is b
 string       is x
-temp[]      is x
+'temp[]      is x
 argproc(args[],vals[])
-if _id !dp then _id = $mylibhandle endif
-(void)$arrpush(temp[], `"<table id='" + _id + "' class='recordDisplay'>"`)
-'header row
-string = "<tr id='" + _id + "-head' class='recordHead'>"
-i = 0
-do while i++ < $maxarray(_dstname[])
-   string += "<td id='" + _id + "-header-" + i + "'>" + _dstname[i] + "</td>"
-enddo
-string += "</tr>"
-(void)$arrpush(temp[], string)
-'detail rows
-i = 0
-do while i++ < $maxarray(_dstlist[], _dstvals[])
-   string = "<tr id='" + _id + "-" + i + "' class='recordDetail'>"
-   j = 0
-   do while j++ < $maxarray(_dstvals[i])
-      string += "<td id='" + _id + "-" + i + "-" + j + "'>" + _dstvals[i,j] + "</td>"
+if _re-render = "Y" then
+   rec.get()
+   rec.read()
+   $clear(_render[])
+endif
+if _render[] !dp then
+   if _id !dp then _id = $mylibhandle endif
+   (void)$arrpush(_render[], `"<table id='" + _id + "' class='recordDisplay'>"`)
+   'header row
+   string = "<tr id='" + _id + "-head' class='recordHead'>"
+   i = 0
+   do while i++ < $maxarray(_dstlabel[])
+      string += "<td id='" + _id + "-header-" + i + "'>" + _dstlabel[i] + "</td>"
    enddo
    string += "</tr>"
-   (void)$arrpush(temp[], string)
-enddo
-(void)$arrpush(temp[],"</table>")
-render[] = temp[]
+   (void)$arrpush(_render[], string)
+   'detail rows
+   i = 0
+   do while i++ < $maxarray(_dstname[], _dstvals[])
+      string = "<tr id='" + _id + "-" + i + "' class='recordDetail'>"
+      j = 0
+      do while j++ < $maxarray(_dstvals[i])
+         string += "<td id='" + _id + "-" + i + "-" + j + "'><literal value='" + _dstvals[i,j] + "' edittype='" + _dstedittype[j] + "' editnum='" + _dsteditnum[j] + "' /></td>"
+      enddo
+      string += "</tr>"
+      (void)$arrpush(_render[], string)
+   enddo
+   (void)$arrpush(_render[],"</table>")
+endif
+render[] = _render[]
 end render
 
 public dynamic function argproc(args[], vals[]) is null
 args[]   is x
 vals[]   is x
 arg      is x
+copy[]   is x
+copyptr  is b
 xidx     is x
 idx      is b
 i        is b
+vartype[] is x
+val      is v
+$clear(_re-render)
 i = 0
 do while i++ < $maxarray(args[], vals[])
-   $parsem(args[i], 1, "-", arg, xidx)
-   select $uc(arg)
-      case  "ID"       _id = vals[i]
-      case  "REGID"    if _regid != vals[i] then
-                           _regid = vals[i]
-                        endif
-      case  "REC"       if _dstHead != $uc(vals[i]) then
-                           _dstHead = $uc(vals[i])
-                        endif
-      case  "DST"       if xidx dp then
-                           idx = $num(xidx)
-                        else
-                           idx = $maxarray(_dstlist[]) + 1
-                        endif
-                        _dstlist[idx] = vals[i]
-      case  "LABEL"     if xidx dp then
-                           idx = $num(xidx)
-                        else
-                           idx = $maxarray(_dstname[]) + 1
-                        endif
-                        _dstname[idx] = vals[i]
-      case  "EDIT"      if xidx dp then
-                           idx = $num(xidx)
-                        else
-                           idx = $maxarray(_dstedit[]) + 1
-                        endif
-                        _dstedit[idx] = vals[i]
-      case  "LAYER"     _layer = $num(vals[i])
-         
-   endselect
+   $parsem($uc(args[i]), 1, "-", arg, xidx)
+   arg = "_" + arg
+   _varlistptr = $find(arg, _varlist[], 1, "F")
+   if _varlistptr = 0 then
+      _varlistptr = $maxarray(_varlist[])
+      do while _varlist[_varlistptr] != arg
+         (void)$getvar(++_varlistptr,,vartype[_varlistptr],,_varlist[_varlistptr])
+         if _varlist[_varlistptr] !dp then
+            $clear(arg)   'invalid argument
+         endif
+      enddo
+   endif
+   if arg dp then
+      copyptr = $varptr(copy[])
+      (void)$copyvar(_varlistptr, copyptr)
+      if xidx dp then
+         idx = $num(xidx)
+      else
+         $clear(idx)
+      endif
+      vals[i] = $replace("{", "<", vals[i])
+      vals[i] = $replace("}", ">", vals[i])
+      if copy[idx] != vals[i] then
+         $setvartype(val, vartype[_varlistptr])
+         val = $cast(vals[i], vartype[_varlistptr])
+         _re-render = "Y"
+         copy[idx] = val
+'         copy[idx] = vals[i]
+         (void)$copyvar(copyptr, _varlistptr)
+      endif
+   endif
 enddo
-   rec.get()
-   rec.read()  
 end argproc
 
 public dynamic function rec.get() is b
@@ -106,7 +123,7 @@ headno   is b
 db[]     is b
 if _dstHead dp then
    headno = $dstnumber(_dstHead)
-   rec.get = $dsttoarray(,headno,,,_dstlist[],_dstname[],db[])
+   rec.get = $dsttoarray(,headno,,,_dstname[],_dstlabel[],db[])
    _db = db[1]
 'else
 '   _dstHead = $myLibHandle
@@ -116,10 +133,10 @@ end rec.get
 public dynamic function rec.read() is b
 rc       is b
 i        is b
-rc = _d-lib:read(_regid,_dstlist[])
+rc = _d-lib:read(_regid,_dstname[])
 do while rc < 2
-   _dstvals[++i] = _d-lib:dst(_dstlist[])[]
-   rc = _d-lib:nextrec(_db, _regid, _list)
+   _dstvals[++i] = _d-lib:dst(_dstname[])[]
+   rc = _d-lib:nextrec()
 enddo
 rec.read = i
 end rec.read
