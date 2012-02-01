@@ -187,7 +187,7 @@ endif
 if dst[] dp and value[] dp then
    put(dst[], value[])
 endif
-
+$clear(_mastereffdate[])
 $dblock()
 (void)$dbpoint(_masterDB, _masterReg)
 add = $dbadddst(_masterDB, _masterReg,_masterLIst)
