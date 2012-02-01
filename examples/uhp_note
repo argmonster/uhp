@@ -1,0 +1,872 @@
+%define d_formpath "/c0/test/"
+%define d_dbx_code1 "NT"
+%define d_dbx_code2 "ISN"
+%define d_dbx_desc "65000"
+
+start uhp_note(parmfile, option, regid, retcode)
+
+parmfile    is x
+option      is x
+regid       is x
+retcode     is b
+
+'temp var for testing / demo
+mallet_note is x
+'***************************
+
+ntevent     is x
+matchdur    is x
+days_to_enter  is x
+load_on_start  is x
+'dbx options
+save_to_dbx is x
+dbx_code1   is x
+dbx_code2   is x
+dbx_string  is x
+dbx_desc    is x
+dbx_snapid[] is x
+l_dbx[]     is x
+b_dbx[]     is x
+b_dbxview[] is x
+dbx_key[]   is x
+t_client    is x
+t_code1     is x
+t_code2     is x
+t_date      is d
+t_time      is t
+t_bin       is b
+
+v_sac[]     is x
+l_sac[]     is x
+v_ru[]      is x
+l_ru[]      is x
+v_loc[]     is x
+l_loc[]     is x
+v_att[]     is x
+l_att[]     is x
+v_recip[]   is x
+l_recip[]   is x
+
+l_group[]   is x
+r_group[]   is x
+client[]    is x
+client.idx  is x
+e.ser       is x
+e.ru        is x
+e.date      is x
+e.staff     is x
+e.case.no[] is x
+e.dur[]     is x
+e.cl.dur[]   is x
+e.start[]   is x
+e.end[]     is x
+e.recip     is x
+e.loc       is x
+e.att       is x
+e.lof       is x
+e.type      is x
+tempend     is t
+e.erkey[]   is x
+
+
+p.staff[]   is x
+p.date[]    is x
+p.time[]    is x
+p.dur[]     is x
+p.sam[]     is x
+p.ru[]      is x
+
+next-appt   is x
+next-date   is x
+next-time   is x
+next-dur    is x
+
+err[]       is x
+
+note        is x
+g_note[]    is x
+
+objinfo[,]  is x
+grpinfo[]   is x
+dsts[]       is x
+dstaction[]   is x
+b_dst-load  is x
+
+txpinfo[,]  is x
+c_txp[,]    is x
+l_txp[]     is x
+r_txp[]     is x
+
+mainform[]  is x
+reportform  is x
+snapid[]    is x
+isn[]       is x
+
+'tab variables
+l_tab       is x
+t_ptr       is b
+t_visit[]   is b
+t_title[]   is x
+b_tab[]     is x
+
+'script call variables
+b_script[]  is x
+script[]    is x
+
+'library variables
+u-note-lib[]   is x
+b_lib[,]    is x
+
+'buttons
+b_addClt    is x
+b_rmClt[]   is x
+
+class       is x
+
+grpnote     is x
+grpfill     is x
+notetype    is x
+ntchecklvl[,]   is x
+
+'draft vars
+l_draft[]   is x
+dr_suffix[] is x
+b_draft[]   is x
+suffix      is x
+d_objinfo   is x
+d_txpinfo   is x
+d_txpsel    is x
+d_note      is x
+
+rc          is b
+i           is b
+string      is x
+is-parm     is x
+temp[]      is x
+clientdb    is b
+staffdb     is b
+coTherMod   is b
+grpMod      is b
+
+client-lib  is b
+e-lib       is b
+note-lib    is b
+usr-lib     is b
+dst-lib[]   is b
+temp-lib    is b
+'REC-LIB     IS B
+
+u-note-lib.regid is x
+
+'variables for faking eBASE_Notes callpoints
+ntafterscript  is x
+title          is x
+'retcode        is x
+retn-err       is alpha
+TxtBxEntry[]   is alpha
+ValuesV[]      is alpha
+ntopt[]        is alpha 
+gennote        is alpha 
+objinfarr1[]   is alpha 
+notestaff      is alpha
+lsru           is binary
+sdate          is date  
+staff          is alpha
+cldur[]        is time  
+stime[]        is time  
+location       is alpha 
+sdur[]         is time  
+sac            is binary
+thertype       is alpha 
+recipient      is alpha 
+attendance     is alpha 
+lof            is alpha
+ntheader       is x
+_callpoint     is x
+
+%include inc_sysLibDef
+
+gosub _INIT
+if $uc(load_on_start) = "Y" then
+   gosub _READ
+endif
+_callpoint = 0
+gosub _NTAFTERSCRIPT
+
+' MAIN:::
+do while 1 = 1 
+   'PREFORM::
+   gosub _PREFORM
+
+   'UHP::
+   rc = uhp(mainform[t_ptr])
+   if rc > 0
+      $brmsg($fmt(rc, "Problem with Template: 99"),1,"WEC","UHP Error")
+   endif
+   
+   'POST FORM::
+   gosub _DRAFT
+   
+   select $endbutton
+      case "CANCEL"  'return
+                     draft_handle:dr_cancel("Save Draft Before Closing?", regid,,$oper,$scriptid,suffix)
+      case "SUBMIT"  if ++t_ptr > $maxarray(mainform[]) then
+                        t_ptr = $maxarray(mainform[])
+'                        _callpoint = 1
+'                        gosub _NTAFTERSCRIPT
+'                        _callpoint = 2
+'                        gosub _NTAFTERSCRIPT
+'                        _callpoint = 3
+'                        gosub _NTAFTERSCRIPT
+                        gosub _VALIDATE
+                        if err[] !dp then
+                           gosub _SAVE
+                        endif
+                     endif
+      case other     
+         select "Y"
+            case b_dst-load
+               gosub _READ
+            case b_addClt
+               $clear(string)
+               client-lib:pickClient(string)
+               if string dp then
+                  (void)$arrPush(client[], string)
+                  gosub _READ
+               endif
+            case other
+               i = $find("Y", b_tab[], 1, "F")
+               if i > 0 then
+                  t_ptr = i
+               endif
+               if b_addClt = "Y" then
+                  client-lib:pickClient(string)
+                  if string dp then
+                     (void)$arrPush(client[], string)
+                     gosub _READ
+                  endif
+               endif
+               i = $find("Y", b_rmClt[], 1, "F")
+               if i > 0 then
+                  (void)$arrRemove(client[i],1,e.start[i],e.dur[i])
+                  gosub _READ
+               endif
+               i = $find("Y", b_draft[], 1, "F") 
+               if i > 0 then
+                  gosub _LOAD
+               endif
+               i = $find("Y", b_script[], 1, "F")
+               if i > 0 then
+                  if is-parm = "Y" then
+                     string = parmfile
+                  else
+                     $clear(string)
+                  endif
+                  call script[i] (string, option, regid, retcode)
+               endif
+               i = $find("Y", b_dbx[], 1, "F")
+               if i > 0 then
+                  gosub _LOADDBX
+               endif
+               i = $find("Y", b_dbxview[], 1, "F")
+               if i > 0 then
+                  snap_handle:sn_viewsnap(dbx_snapid[i])
+               endif
+               if $find("Y", b_lib[], 1, "F") > 0 then
+                  i = 0 
+                  temp-lib = $row_num
+                  temp-lib:submit($col_num,b_lib[$row_num],objinfo[])
+               endif
+         endselect
+   endselect
+enddo
+return
+
+_PREFORM:
+   u-note-lib.regid = regid
+   $clear(b_addclt, b_rmclt[], b_script[], b_lib[], b_tab[], b_draft[])
+   if grpnote = "Y" then
+      $clear(l_group[])
+      (void)$arrPush(l_group[], "<div id='eTable'>")
+      i = 0
+      do while i++ < $maxarray(client[])
+         if client[i] != regid then
+            (void)$dbalpha(clientdb, client[i], string)
+            string = "<h6><a href='#'><input type='submit' uhp='" + $varname(b_rmclt[]) + "' idx='" + i + "' value='[x]' classsel='link' classnotsel='link' />(" + client[i] + ") " + string + "</a>"
+            if err[i] dp then
+               string += "<span class='error'> *Error</span>"
+            endif
+            string += "</h6><div><span class='error'>" + err[i] + "</span><br />"
+            string += "Start Time: <input type='text' id='" + $varname(e.start[]) + "-" + i + "' uhp='" + $varname(e.start[]) + "' idx='" + i + "' edit='TIME' />"
+            string += "Duration: <input type='text' id='" + $varname(e.dur[]) + "-" + i + "' uhp='" + $varname(e.dur[]) + "' idx='" + i + "' edit='DUR' /> <br />"
+            string += l_txp[i]
+            rc = 0
+            do while rc++ < $maxarray(grpinfo[])
+               string += $replace("/>", 
+                  `"id='test-" + i + "-" + rc + "' uhp='" + $varname(objinfo[]) + "' idx='" + i + "' idx2='" + rc + "' />"`,
+                  grpinfo[rc]) + "<br />"
+            enddo
+            string += "</div>"
+            (void)$arrPush(l_group[], string)
+         endif
+      enddo
+      (void)$arrPush(l_group[], "</div>")
+   endif
+   if $maxarray(mainform[]) > 1 then
+      t_visit[t_ptr]++
+      $clear(l_tab)
+      i = 0
+      do while i++ < $maxarray(mainform[])
+         $clear(class)
+         if b_tab[i] = "Y" or i = t_ptr then
+            class = "st_cur"
+         elseif t_visit[i] > 0 then
+            class = "st_act"
+         else
+            class = "st_ina"
+         endif
+   
+         string = t_title[i]
+         if t_title[i] !dp then
+            string = "Form " + i
+         endif
+         l_tab += "<input type='submit' uhp='" + $varname(b_tab[]) + "' idx='" + i + "' value='" + string + "' "
+               + "classsel='" + class + "' classnotsel='" + class + "' />"
+      enddo
+   endif
+goback
+
+_VALIDATE:
+   $clear(err[])
+   'make sure all the event data is there
+   if e.ser !dp then
+      err[1] += "<li>Please Select a Service Provided</li>"
+   endif
+   if e.ru !dp then
+      err[1] += "<li>Please Select a RU</li>"
+   endif
+   if e.date !dp then
+      err[1] += "<li>Please Select a Date of Service</li>"
+   else
+      if usr-lib:check_date(days_to_enter, e.date, "N") = "N" then
+         err[1] += "<li>Outside of allowable days</li>"
+      endif
+   endif
+   if e.start[1] !dp then
+      err[1] += "<li>Please Enter a Start Time</li>"
+   endif
+   if e.dur[1] !dp then
+      err[1] += "<li>Please Enter a Duration</li>"
+      $clear(tempend)
+   else
+      tempend = $time(e.start[1]) + $time(e.dur[1])
+      e.end[1] = $fmt(tempend, "HH:MM AP")
+   endif
+   if e.recip !dp then
+      err[1] += "<li>Please Select a Recipient</li>"
+   endif
+   if e.loc !dp then
+      err[1] += "<li>Please Select a Location</li>"
+   endif
+   if e.att !dp then
+      err[1] += "<li>Please Select an Attendance</li>"
+   endif
+'   if grpnote = "Y" then
+'   if e.cl.dur[1] !dp then
+   if matchdur = "Y" then
+      e.cl.dur[1] = e.dur[1]
+   endif
+
+   if err[1] !dp then
+      usr-lib:check_pne_rules(notetype, e.date, e.dur[1], e.cl.dur[1], e.start[1], e.ser, e.ru,
+                      temp[], regid, e.loc, e.recip, e.att, "N")
+      if temp[] dp then
+         (void)$putds(temp[], string, "|")
+         err[1] += "<li>" + $replace("|", "</li><li>", string) + "</li>"
+      endif
+      usr-lib:overlap_pne(temp[], e.ser, e.start[1], e.dur[1], e.date, e.staff, regid,
+                  notetype, e.erkey[1], e.recip, e.loc, e.att)
+      if temp[] dp then
+         (void)$putds(temp[], string, "|")
+         err[1] += "<li>" + $replace("|", "</li><li>", string) + "</li>"
+      endif
+   endif
+   if err[1] dp then
+      err[1] = "<ul>" + err[1] + "</ul>"
+   endif
+
+   i = 0
+   do while i++ < $maxarray(client[])
+      e.case.no[i] = client[i]
+      if client[i] != regid then
+         if e.start[i] !dp then
+            if grpfill = "Y" and e.start[1] dp then
+               e.start[i] = e.start[1]
+            else
+               err[i] += "<li>Please Enter a Start Time</li>"
+            endif
+         else
+            if $time(e.start[i]) < $time(e.start[1]) 
+            or tempend < $time(e.start[i]) then
+               err[i] += "<li>Start Time must be between Group Start and Stop Times</li>"
+            endif
+         endif
+         if e.dur[i] !dp then
+            if grpfill = "Y" and tempend dp then
+               e.dur[i] = tempend - $time(e.start[i])
+            else
+               err[i] += "<li>Please Enter a Duration</li>"
+            endif
+         else
+            if `$time(e.start[i]) + $time(e.dur[i])` > tempend then
+               err[i] += $fmt(tempend,"<li>Duration Cannot exceed Group End Time (HH:MM AP)</li>")
+            endif
+         endif
+         if e.start[i] dp and e.dur[i] dp then
+            e.end[i] = $fmt(`$time(e.start[i]) + $time(e.dur[i])`, "HH:MM AP")
+         endif
+      endif
+      if err[i] dp then
+         err[i] = "<ul>" + err[i] + "</ul>"
+      else
+         e.cl.dur[i] = e.dur[i]
+         usr-lib:overlap_pne(temp[], e.ser, e.start[i], e.dur[i], e.date, e.staff, e.case.no[i],
+                     notetype, e.erkey[i], e.recip, e.loc, e.att)
+         if temp[] dp then
+            (void)$putds(temp[], string, "|")
+            err[i] += "<ul>" + err[i] + "<li>" + $replace("|", "</li><li>", string) + "</li></ul>"
+         endif
+      endif
+   enddo
+goback
+
+_SAVE:
+   i = 0
+   do while i++ < $maxarray(client[])
+      if snapid[i] dp then
+         if isn[i] !dp then
+            gosub _WRITEEVENT
+         endif
+      else
+         if client[i] = regid and grpnote = "Y" then
+            if isn[i] !dp then
+               gosub _WRITEEVENT
+            endif
+         else
+            $clear(string)
+            client.idx = i
+            if r_txp[i] !dp then
+               r_txp[i] = note-lib:txp.tostring(client[i], "SYS", c_txp[], ntchecklvl[], txpinfo[], i)
+            endif
+            string += r_txp[i]
+            rc = 0
+            do while rc++ < $maxarray(grpinfo[])
+               string += $replace("/>", 
+                  `"id='test-" + i + "-" + rc + "' uhp='" + $varname(objinfo[]) + "' idx='" + i + "' idx2='" + rc + "' />"`,grpinfo[rc])
+            enddo
+            string += "<br />Notes: <br /> <literal value='" + $varname(g_note[]) + "' id='" + $varname(g_note[]) + "-" + i + "' idx='" + i + "' class='wide' /></div>"
+            (void)$arrPush(r_group[], string)
+
+            uhp(reportform)
+            select $endbutton
+               case "CANCEL"  goback
+               case "SUBMIT"  goback
+               case other     snapid[i] = snap_handle:sn_getSnapID()
+                              if snapid[i] dp then
+                                 gosub _WRITEEVENT
+                                 gosub _WRITEDST
+                                 gosub _WRITEDBX
+                                 gosub _SCHEDULE
+                                 draft_handle:dr_deleteDraft(Regid, ,$oper,$scriptid,Suffix)
+                                 return
+                              endif
+            endselect
+         endif
+      endif
+   enddo
+
+goback
+_WRITEDST:
+   if dsts[] dp then
+      i = 0
+      do while i++ < $maxarray(client[])
+         if dst-lib[i] dp then
+            temp-lib = dst-lib[i]
+         else
+            (void)$loadlib(temp-lib, "lib_DST")
+            temp-lib:read(client[i], dsts[])
+            dst-lib[i] = temp-lib
+         endif
+         rc = 0
+         do while rc++ < $maxarray(dsts[])
+            if $find("A", $uc(dstaction[rc]), 1, "F") > 0 then ' = "Y" then
+               temp-lib:put(dsts[rc], objinfo[i,rc])
+            endif
+         enddo
+         temp-lib:add()
+      enddo
+   endif
+goback
+
+_WRITEEVENT:
+   if ntevent != "N" then
+      e.case.no[i] = client[i]
+      $clear(coTherMod,grpMod)
+      if therType = "C" then
+         coTherMod = 1
+      endif
+      select $sam($casti(e.ser),"CL")
+         case "C"    rc = 0
+                     $clear(coTherMod,grpMod)
+         case "D"    rc = 1
+                     coTherMod += coTherMod
+                     if grpNote = "Y" then
+                        if client[i] != regid then
+                           grpMod = 9
+                        else
+                           grpMod = 1
+                        endif
+                     endif
+         case "S"    rc = 5
+         case "I"    rc = 7
+         case "A"    rc = 9
+                     $clear(coTherMod,grpMod)
+      endselect
+      rc += grpMod + coTherMod
+      select rc
+         case 10     e.type = "A"
+         case 11     e.type = "B"
+         case other  e.type = $castx(rc)
+      endselect
+'      e.staff = $operstaffid
+      $isnrgfrom = "ISN"
+      e-lib:clearEr()
+      e-lib:putEventInfo(e.case.no[i], e.staff ,e.ser, e.ru,e.date ,e.dur[i],e.cl.dur[i],e.start[i],e.recip ,e.loc ,e.att,e.type)
+      isn[i] = $isnkey
+      if snapid[i] dp then
+         rc = note-lib:isn.doc.add(parmfile, option, $isnkey, e.date, snapid[i])
+         if rc > 0 then
+            'issue saving isn
+         endif
+      endif
+   endif
+goback
+
+_WRITEDBX:
+   if save_to_dbx = "Y" then
+      dbx_string = snapid[i] + "|" + note + "|" + d_objinfo + "|" + d_txpinfo + "|" + d_txpsel + "|" + d_note
+      rc = $dbxinsert(clientdb, client[i], dbx_code1, dbx_code2, dbx_string, dbx_desc, 
+                     $operstaffid, $castd(e.date), $castt(e.start[i]), $casti(e.ser) )
+      if rc > 0 then
+         'handle dbx write error
+         $brmsg($fmt(rc, "dbx NOT saved 99"), 1, "WEC")
+      else
+         $brmsg("dbx saved", 1, "WEC")
+      endif
+   endif
+goback
+
+_READDBX:
+   $clear(l_dbx[], dbx_key[],dbx_snapid[],temp[])
+   t_client = regid
+   t_code1 = dbx_code1
+   t_code2 = dbx_code2
+   i = 0
+   rc = $dbxread(clientdb, t_client, t_code1, t_code2, dbx_string, string, temp[1], t_date, t_time,t_bin)
+   do while rc = 0
+      '++i
+'      if $find(temp[4], v_sac[],1,"F") > 0 then
+      if string = dbx_desc then
+         dbx_key[++i] = $dbxkey
+         string = $parse(dbx_string, 1, "|")
+         if $len(string) = 8
+            dbx_snapid[i] = string
+         endif
+         (void)$dbalpha(staffdb, temp[1], temp[2])
+         l_dbx[i] = "<div class='dbxitem' id='dbxitem-" + i + "' >"
+         if dbx_snapid[i] dp then
+            l_dbx[i] += "<input type='submit' uhp='" + $varname(b_dbxview[]) + "' idx='" + i + "' value='view' classsel='link' classnotsel='link' />"
+         endif
+            l_dbx[i] += "<input type='submit' uhp='" + $varname(b_dbx[]) + "' idx='" + i + "' value='load' classsel='link' classnotsel='link' />"
+                     + "Date: " + $fmt(t_date,"MM/DD/YY")
+                     + " Start: " + $fmt(t_time,"HH:MM AP")
+                     + " Service: (" + $castx(t_bin) + ") " + $sam(t_bin)
+                     + " Staff: (" + temp[1] + ") " + temp[2]
+                     + "</div>"
+      endif
+      rc = $dbxreadnext(clientdb, t_client, t_code1, t_code2, dbx_string, string, temp[1], t_date, t_time,t_bin)
+   enddo
+   if l_dbx[] !dp then
+      l_dbx[1] = " <div class='dbxitem' id='dbxitem-" + i + "' > No Previous Notes Available </div>"
+   endif
+goback
+
+_LOADDBX:
+   if general_handle:gl_yn("Save Current Note?", "Select Yes to Save the current screen, No to delete") = "N" then
+      draft_handle:dr_deleteDraft(Regid, ,$oper,$scriptid,Suffix)
+   endif
+   if $dbxreadk(dbx_key[i], dbx_string, dbx_desc,,,,t_bin) = 0 then
+      e.ser = t_bin
+      $parsem(dbx_string, 1, "|",, note, d_objinfo, d_txpinfo, d_txpsel, d_note)
+      objinfo[] = draft.decode(d_objinfo)
+      txpinfo[] = draft.decode(d_txpinfo)
+      c_txp[] = draft.decode(d_txpsel)
+      g_note[] = draft.decode(d_note)
+   else
+      'handle load error
+   endif
+goback
+
+_SCHEDULE:
+'   if next-date dp and next-time dp and next-dur dp then
+'      pe.date = $castnextdate
+goback
+
+_DRAFT:
+   string = note_handle:generatesuffix(e.date,e.start[1],e.ser,e.ru)
+   if string != suffix and suffix dp then
+      draft_handle:dr_deleteDraft(RegID, ,$oper,$scriptid,Suffix) 
+   endif
+   suffix = string
+   $clear(d_objinfo, d_txpinfo)
+   i = 0
+   do while i++ < $maxarray(objinfo[],txpinfo[])
+      d_objinfo += draft.encode(objinfo[i])
+      d_txpinfo += draft.encode(txpinfo[i])
+      d_txpsel  += draft.encode(c_txp[i])  
+   enddo
+   d_note = draft.encode(g_note[])
+   draft_handle:dr_putDraftSx(clientDB, Suffix, RegID, Note, , 
+                              $operstaffid, e.date, e.start[1], e.ser, e.RU, e.dur[1], 
+                              e.cl.dur[1], e.Loc, , e.Recip, , 
+                              e.Att, , , , , , 
+                              , ParmFile, note, d_objinfo, d_txpinfo,d_txpsel,d_note) ', Var22,...,Var247)
+goback
+
+_LOAD:
+   if general_handle:gl_yn("Save Current Note?", "Select Yes to Save the current screen, No to delete") = "N" then
+      draft_handle:dr_deleteDraft(Regid, ,$oper,$scriptid,Suffix)
+   endif
+   draft_handle:dr_getDraftSx(clientDB, dr_Suffix[i], RegID, Note, , 
+                              $operstaffid, e.date, e.start[1], e.ser, e.RU, e.dur[1], 
+                              e.cl.dur[1], e.Loc, , e.Recip, , e.Att, , , , , , 
+                              , ParmFile,note, d_objinfo,d_txpinfo, d_txpsel,d_note) ', Var22,...,Var247)
+   objinfo[] = draft.decode(d_objinfo)
+   txpinfo[] = draft.decode(d_txpinfo)
+   c_txp[] = draft.decode(d_txpsel)
+   g_note[] = draft.decode(d_note)
+   suffix = dr_suffix[i]
+   (void)$arrRemove(l_draft[i])
+   if l_draft[] !dp then
+      l_draft[i] += "<div class='draftitem' id='draftitem-" + i + "' >No Drafts on File</div>"
+   endif
+goback
+
+_READ:
+   i = 0
+   do while i++ < $maxarray(client[])
+      if dsts[] dp then
+         if dst-lib[i] dp then
+            temp-lib = dst-lib[i]
+         else
+            (void)$loadlib(temp-lib, "lib_DST")
+            temp-lib:read(client[i], dsts[])
+            dst-lib[i] = temp-lib
+         endif
+         rc = 0
+         do while rc++ < $maxarray(dsts[])
+            if $find("L", dstaction[rc], 1, "F") > 0 then ' = "Y" then
+'               string = dsts[rc] 
+               objinfo[i,rc] = temp-lib:dst(dsts[rc])
+'               objinfo[i,rc] = temp-lib:dst(string)
+'               dstload[rc] = "N" 'only load the first time
+               dstaction[rc] = $replace("L","", dstaction[rc])
+            endif
+         enddo
+      endif
+      l_txp[i] = note-lib:txp.toform(client[i], "SYS", c_txp[], ntchecklvl[], txpinfo[], i)
+   enddo
+goback
+
+_INIT:
+
+   if parmfile = "md-note-mallet.html" then
+      note = mallet_note
+   endif
+
+   (void)$loadlib(client-lib, "lib_CLIENT")
+   (void)$loadlib(e-lib, "lib_EventIO")
+   (void)$loadlib(note-lib, "lib_NOTES")
+   (void)$loadlib(usr-lib, "lib_USREVENT")
+   
+   e.staff = $operstaffid
+   clientdb = 2
+   staffdb = 3
+   t_ptr = 1
+   
+   if $charx(parmfile,1) != "/" then
+      string = $sysname + "/PARM/" + parmfile
+      if $checkfile(string) = 0 then
+         getparm(parmfile)
+         is-parm = "Y"
+      else
+         parmfile = d_formpath + parmfile
+         if $checkfile(parmfile) = 0 then
+            uhp_Option(parmfile)
+            mainform[t_ptr] = parmfile
+            '$clear(parmfile)
+         endif
+      endif
+   else
+      uhp_Option(parmfile)
+      if mainform[] !dp then
+         mainform[t_ptr] = parmfile
+      endif
+      if reportform !dp then
+         reportform = parmfile
+      endif
+      '$clear(parmfile)
+   endif
+   getoption(option)
+   
+   if mainform[] !dp or reportform !dp then
+      return
+   endif
+   if $checkfile(mainform[1]) > 0 then
+      return
+   endif
+   if $checkfile(reportform) > 0 then
+      return
+   endif
+   if $uc(save_to_dbx) = "Y" then
+      save_to_dbx = "Y"
+      if dbx_code1 !dp then
+         dbx_code1 = d_dbx_code1
+      endif
+      if dbx_code2 !dp then
+         dbx_code2 = d_dbx_code2
+      endif
+      if dbx_desc !dp then
+         dbx_desc = parmfile
+      endif
+   endif
+   $clear(v_sac[],l_sac[],v_ru[],l_ru[],v_loc[],l_loc[],v_att[],l_att[],v_recip[],l_recip[])
+   usr-lib:rule.erdata.get(notetype,v_sac[],l_sac[],
+                                    v_ru[],l_ru[],
+                                    v_loc[],l_loc[],
+                                    v_att[],l_att[],
+                                    v_recip[],l_recip[],"S")
+   
+   if client-lib:pickClient(regid) > 0 then return endif
+   if grpnote = "Y" then client[] = note-lib:group.get(regid)[] endif
+   (void)$arrInsert(client[1],regid)
+   e-lib:setEvents(,regid,$today, `$today + 365`)
+   e-lib:getEventInfo(p.staff[], p.date[], p.time[], p.dur[], p.sam[], p.ru[])
+   
+   $clear(l_draft[])
+   draft_handle:dr_DraftsOnFile(,,RegID,,$Scriptid, dr_Suffix[])
+   if dr_suffix[] dp then
+      i = 0
+      do while i++ < $maxarray(dr_Suffix[])
+         l_draft[i] = " <div class='draftitem' id='draftitem-" + i + "' >"
+                    + "<input type='submit' uhp='" + $varname(b_draft[]) + "' idx='" + i + "' value='load' classsel='link' classnotsel='link' />"
+                    + "Date: " + $fmt($date($seg(dr_suffix[i],1,6)),"MM/DD/YY")
+                    + " Start: " + $fmt($time($seg(dr_suffix[i],7,4)),"HH:MM AP")
+                    + " Service: (" + $seg(dr_suffix[i],11,4) + ") " + $sam($num($seg(dr_suffix[i],11,4)))
+                    + " RU: (" + $seg(dr_suffix[i],15,4) + ") " + $ru($num($seg(dr_suffix[i],15,4)))
+                    + "</div>"
+      enddo
+   else
+      l_draft[i] += "<div class='draftitem' id='draftitem-" + i + "' >No Drafts on File</div>"
+   endif
+   gosub _READDBX
+goback
+
+_NTAFTERSCRIPT:
+   $parsem(ntafterscript,1," ",temp[])
+   if $find(_callpoint,temp[2], 1, "F") > 0 then
+      title = ntheader   'if your ntafterscripts use this var set in templateparms
+   '   retcode
+   '   retn-err
+      TxtBxEntry[] = objinfo[1]
+      ValuesV[] = objinfo[1]
+      ntopt[] = objinfo[1]
+      gennote = note
+      objinfarr1[] = objinfo[1]
+      notestaff = $operstaffid
+      lsru = $casti(e.ru)
+      sdate = $castd(e.date)
+      staff = $dct(2071, $oper)
+      cldur[] = $castt(e.cl.dur[])
+      stime[] = $castt(e.start[])
+      location = e.loc
+      sdur[] = e.dur[]
+      sac = $casti(e.ser)
+      'thertype = e.type
+      recipient = e.recip
+      attendance = e.att
+      lof = e.lof
+      
+      call temp[1] (title, client[], option, parmfile, retcode, retn-err, ,,notestaff,staff,sdate,stime[],sdur[],cldur[],
+                    sac,lsru,location,thertype,recipient,attendance,lof,,,gennote,ntopt[],objinfarr1[],,,,,,,,,,valuesV[],
+                    txtBxEntry[],,,,,,,,,,,,,,,,,,,,,_callpoint)
+      if retn-err = "Y" or $returnerr = "Y" then
+         err[1] += $errmsg1 + $errmsg2 + $errmsg3 + $errmsg4 + $errmsg5 + $errmsg6 + $errmsg7 + $errmsg8 + $errmsg9
+      endif
+   endif
+goback
+
+end uhp_note
+
+%include inc_GetParm
+%include inc_GetOption
+%include inc_uhpOption
+%include inc_uhp
+
+dynamic function draft.encode(array[]) is x
+array[]     is x     'array to encode
+string      is x     'encoded string
+(void)$putds(array[],string,"`")
+draft.encode = string + "~"
+end draft.encode
+
+dynamic function draft.decode(string)[,] is x
+string      is x
+a1[]        is x
+'a2[]        is x
+'array[,]     is x
+i           is b
+(void)$getds(a1[], string, "~")
+i = 0
+do while i++ < $maxarray(a1[])
+   (void)$getds(draft.decode[i],a1[i],"`")
+enddo
+end draft.decode
+
+%preload mallet_note line-ending(cr)
+Mental Status Exam:
+
+Comments:
+
+Appearance: {appear}
+Attitude: {tude}
+PsychoMotor: {motor}
+Mood: {mood}
+Affect: {affect}
+Speech: {speech}
+Thought Process: {proc}
+Thought Content: {cont}
+Perceptual: {prec}
+Congnition: {cogn}
+Level of Consciousness: {consc}
+Orientation: {orien}
+Memory: {mem}
+Intelligence: {intell}
+Judgement: {judge}
+Insight: {insight}
+Suicidal: {suic}
+Violent/Homicidal: {viol}
+Reasoning: {reas}
+
+Physical Exam: {phys}
+%endpreload
