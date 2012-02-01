@@ -4,7 +4,7 @@
 '-----------------------------------------------------------------------------------------
 'Fake Version String:
 '
-' version 2.0 01/11/2012 Tim Markello
+' version 2.1 01/11/2012 Tim Markello
 ' Copyright 9/2/2011 Tim Markello timmarkello@gmail.com
 '
 '-----------------------------------------------------------------------------------------
@@ -38,11 +38,31 @@
 ' RLE 11/02/2011 1.3.1
 '  + added TEXTBOX tag as an alias to TEXT
 '  + added html-compliant SIZE and MAXLENGTH attributes for the $textbox() call
+'
 ' ** Version 2.0 **
 ' Tim 01/11/2012 2.0 *Major Version Change*
 ' + Re worked the MAPPING Routines to allow mapping to 2d arrays
 ' + Added <library> tag
 '
+' Tim 02/01/2012 2.1 *Minor Version Update*
+' + Changed uhp() argument from uhp.path -> uhp.arg[]. This allows you to pass an array 
+'     containing the template that you would like uhp to process
+' + Added lib-var[] and set-vals[] variables for <library>
+'     These values let the called <library> set default values of variables pointed to in the
+'     mainscript. lib-var[] should return a | delimited list of this format:
+'        variable name|x-idx|y-idx
+'     x-idx and y-idx are handled similar to other areas of uhp
+'     The corrisponding value in set-vals[] is copied to the variable pointed to be lib-var[]
+' + Added 'ADDOTHER', 'ADDOTHERTEXT', 'ADDOTHERTEXTIDX', 'ADDOTHERTEXTIDX2' and 'ADDOTHERTEXTEDIT'
+'     attributes to <select>
+' + Added multiple value support to <literal>: 
+'     <literal> now handles uhp values that get squished into | string with dct edits
+' ~ fixed some issues with _BLOCK id generation in <block>, <select> and <input>
+' ~ fixed <literal> edittype='dst' attribute to allow dst names in upper or lowercase
+' ~ fixed issue with loosing values when a <literal> contains a <literal> (saveA[] added)
+' ~ fixed _MAPOUT Routine to allow NULL values to be mapped back to mainscript
+' ~ fixed issue of finding end of tag with tags that contain '/' in attribute values
+' ~ changed some $num() to $casti()
 '-----------------------------------------------------------------------------------------
 'General Use Info:
 '
@@ -190,7 +210,9 @@
 '  |
 '  `--> End of template file
 '---------------------------
-dynamic function uhp(uhp.path) is b
+dynamic function uhp(uhp.arg[]) is b
+ 'argument
+uhp.arg[]      is x
  'template file variables
 uhp.path       is x     'path of the html template for processing
 uhp.handle     is b
@@ -240,8 +262,11 @@ saveCnt[]      is b
 saveptr        is b
 saveVal[]      is x
 saveT[,]       is x
+saveA[,]       is x
  'library module
 lib-return[]   is x
+lib-var[]      is x
+lib-val[]      is x
 templib        is b
 'for saving focus
 'focusid        is x       'may do something with ??
@@ -264,6 +289,18 @@ $loopcount = 0
 $looplimit = 9999 'change to 0?
 contPtr = 0
 contTot = 0
+'process the argument
+if $argusage(uhp.arg[]) = 3 then  'passed in as array
+   if $tempfile(uhp.path) > 0 then
+      uhp = 1
+      return
+   elseif $putfile(uhp.arg[], uhp.path) > 0 then
+      uhp = 1
+      return
+   endif
+else     'simple variable or constant
+   uhp.path = uhp.arg[]
+endif
 'open and process template
 uhp.handle = $fileavail()
 if $openfile(uhp.handle, uhp.path, "I") > 0 then
@@ -361,7 +398,7 @@ goback
 _TAGPROC:
    i = 2
    tagType = $parse(opentag, i, " >")
-   tagAtts = $parse(opentag, i, "/>")
+   tagAtts = $parse(opentag, i, ">")
    if $find("/", opentag, 1, "F") > 0 then
       tagend = "/"
    else
@@ -482,7 +519,7 @@ _INPUT:
                            tempNum = 2
                         endif
                         do while i < tempNum
-                           string = $uc(inputMap) + "-" + $uc(value[i]) + "-" + idxptr + "-" + idx2ptr + "-" + i
+                           string = $uc(inputMap) + "-" + $uc(value[i]) + "-" + idxptr + "-" + idx2ptr
                            if $uc(temp[1]) = "RADIO" then
                               $radio(control[contptr], label[i], value[i],,,string,string,inputmap)
                            else
@@ -523,11 +560,25 @@ _DROPBOX:
       (void)$arrInsert(value[1],"")
       (void)$arrInsert(label[1],"")
    endif
+   if $uc(getAttVal("ADDOTHER", attName[], attValue[], varlist[])) = "Y" then
+      (void)$arrPush(value[1], "OTHER")
+      (void)$arrPush(label[1], "Other")
+   endif
    i = 0
    do while i++ < $maxarray(value[], label[])
-      string = $uc(inputMap) + "-" + $uc(value[i]) + "-" + i
+      string = $uc(inputMap) + "-" + $uc(value[i]) + "-" + idxptr + "-" + idx2ptr
       $dropbox(control[contptr], label[i], value[i],,,string, string)
    enddo
+   temp[1] = getAttVal("ADDOTHERTEXT", attName[], attValue[], varlist[])
+   if temp[1] dp then
+      temp[2] = getattval("ADDOTHERTEXTIDX", attName[], attValue[], varlist[])
+      temp[3] = getattval("ADDOTHERTEXTIDX2", attName[], attValue[], varlist[])
+      temp[4] = getattval("ADDOTHERTEXTEDIT", attName[], attValue[], varlist[])
+      string = "<block uhp='" + inputmap + "' value='OTHER' idx='" + idxptr + "' idx2='" + idx2ptr + "'>"
+             + "<input type='text' uhp='" + temp[1] + "' idx='" + temp[2] + "' idx2='" + temp[3] + "' edit='"
+             + temp[4] + "' /></block>"
+      gosub _REPROC
+   endif
 goback
 
 '-------------------------------------
@@ -559,7 +610,6 @@ _BLOCK:
    idxptr = $num(temp[3])
    temp[4] = getAttval("IDX2", attName[], attValue[], varlist[])
    idx2ptr = $num(temp[4])
-   temp[5] = getAttVal("DCT", attName[], attValue[], varlist[])
    varptr = findvar(temp[1], varList[])
    copyptr = $varptr(main[])
    (void)$copyvar(varptr, copyptr)
@@ -573,25 +623,8 @@ _BLOCK:
    else
       temp[6] = "none"
    endif
-   if temp[5] dp then
-      tempnum = $num(temp[5])
-      (void)$dctload(tempnum, value[])
-      tempnum = $find(temp[2], value[], 1, "F")
-   endif
-   temp[7] = getAttVal("LIST",attName[], attValue[], varlist[])
-   if temp[7] dp then
-      varptr = findvar(temp[7], varlist[])
-      if varptr > 0 then
-         tempnum = $find(temp[2], main[1], 1, "F")
-      endif
-   endif
-   if tempnum > 0 then
-      temp[13] = tempnum
-   else
-      temp[13] = "1"
-   endif
    temp[8] = getAttVal("CLASS",attName[],attValue[],varlist[])
-   string = temp[1] + "-" + temp[2] + "-" + temp[3] + "-" + temp[4] + "-" + temp[13]
+   string = temp[1] + "-" + temp[2] + "-" + temp[3] + "-" + temp[4]
    string = "<div id='scrBlock" + $uc(string) + $uc(string) + "' class='" + temp[8] + "' style='display:" + temp[6] + "'>"
    $ctag(string)
 
@@ -661,7 +694,7 @@ _TEXTBLOCK:
    if temp[6] dp then
       (void)$assignobj(temp[6])
    endif
-   $textblock(control[contptr], $num(temp[3]), $num(temp[2]), temp[5],,$num(temp[4]))
+   $textblock(control[contptr], $casti(temp[3]), $casti(temp[2]), temp[5],,$casti(temp[4]))
 goback
 
 '-------------------------------------
@@ -700,10 +733,25 @@ _LITERAL:
       string = saveVal[i]
       select $uc(temp[1])
          case "DB"      (void)$dbalpha($num(temp[2]), string, string)
-         case "DCT"     string = $dct($num(temp[2]), string, temp[5])
+         case "DCT"     tempnum = 1
+                        temp[8] = $parse(string, tempnum, "|")
+                        do while tempnum < $len(string) or temp[8] dp
+                           temp[9] = $dct($casti(temp[2]), temp[8], temp[5])
+                           if temp[8] dp and temp[10] dp then
+                              temp[10] += ", "
+                           endif
+                           if temp[9] dp then
+                              temp[10] += temp[9]
+                           else
+                              temp[10] += temp[8]
+                           endif
+                           temp[8] = $parse(string, tempnum, "|")
+                        enddo
+                        string = temp[10]
          case "SAC"     string = $sam(string)
          case "RU"      string = $ru(string)
-         case "DST"     (void)$dstinfo(temp[2], dstinfo[])
+         case "DST"     temp[2] = $uc(temp[2])
+                        (void)$dstinfo(temp[2], dstinfo[])
                         $setvarname(fakedst, temp[2])
                         $setvartype(fakedst, dstinfo[5])
                         if dstinfo[16] dp then     'this is a record dst
@@ -799,7 +847,29 @@ _LIBRARY:
    $clear(lib-return[], control[contptr])
    control[contptr,1] = templib
    'do something to make sure 'render()' is in the library?
-   lib-return[] = templib:render(attName[], attValue[])[]
+   lib-return[] = templib:render(attName[], attValue[],lib-var[], lib-val[])[]
+   i = 0
+   do while i++ < $maxarray(lib-var[])
+      $parsem(lib-var[i],1,"|",temp[])
+      idxptr = $casti(temp[2])
+      idx2ptr = $casti(temp[3])
+      varptr = findVar(temp[1], varlist[])
+      if varptr > 0 then
+         copyptr = $varptr(main[])
+         (void)$copyvar(varptr,copyptr)
+         if idx2ptr > 0 then
+            if idxptr > 0 then
+               main[idxptr,idx2ptr] = lib-val[i]
+            else
+               main[idx2ptr] = lib-val[i]
+            endif
+         else
+            main[1,idxptr] = lib-val[i]
+         endif
+         main[] = main[]
+         (void)$copyvar(copyptr, varptr)
+      endif
+   enddo
    string = "<literal value='lib-return' />"
    gosub _REPROC
 goback
@@ -833,6 +903,7 @@ _REPROC:
    saveClose[saveptr] = closePtr
    saveTag[saveptr] = tagtype
    saveT[saveptr] = saveVal[]
+   saveA[saveptr] = temp[]
    saveCnt[saveptr] = i
    uhp.line = string
    openPtr = 0
@@ -843,12 +914,13 @@ _REPROC:
    closePtr = saveClose[saveptr]
    tagType = savetag[saveptr]
    saveVal[] = savet[saveptr]
+   temp[] = saveA[saveptr]
    i = savecnt[saveptr]
    (void)$arrRemove(saveLine[saveptr])
    (void)$arrRemove(saveopen[saveptr])
    (void)$arrRemove(saveClose[saveptr])
    (void)$arrRemove(savetag[saveptr])
-   $clear(saveT[saveptr])
+   $clear(saveT[saveptr],saveA[saveptr])
    saveptr--
 goback
 
@@ -908,7 +980,7 @@ _MAPOUT:
          idx2ptr = $num(temp[3])
          $clear(temp[],string) ',main[])
          temp[] = control[contptr]
-         if temp[] dp then
+         'if temp[] dp then
                (void)$putds(temp[],string, "|")
             if idx2ptr > 0 then
                if idxptr > 0 then
@@ -923,7 +995,7 @@ _MAPOUT:
                   main[1] = temp[]
                endif
             endif
-         endif
+        ' endif
       enddo
       main[] = main[]   '**some wierd quirk the $copyvar doesn't like to copy 2d array without direct assignment
       i = $copyvar(copyptr, varptr)
