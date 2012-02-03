@@ -16,6 +16,21 @@
 '     + put() inserts new values into dst list
 '     + add() adds new layer to db
 '     + unlock() $dbunlock()
+' TJM 02/03/12 .002
+'  + added readList dstlist. a copy of masterlist, but for reading
+'     so values updated by put() don't get blown away
+'  + added updateByValue()
+'     + tries to find the layer to update by matching a list of 
+'        dstname + value pairs to the dst + values of the current
+'        layer. 
+'     * Dsts identified as matching dst that is not found
+'        in the master list are ignored. 
+'     * If no valid matching dsts are specified an update is not attempted
+'        no valid dsts rc = 99
+'     * All criteria must match for update to occur 
+'        no match rc = 88
+'     * Update is attempted if matching layer is found
+'        rc = $dbupdate rc
 '------------------------------------------------
 'Benefits to using this lib over simple dbreads
 ' 1. check() will verify the list of dsts are valid
@@ -40,7 +55,7 @@
 '    - Figure out some way to write the data in a useful way.
 '------------------------------------------------------------------------
 
-%version 01.0.000 03/21/11 GCC
+%version 01.0.002 02/03/12 GCC
 
 library lib_DST()
 
@@ -52,6 +67,13 @@ on load do:
    _masterEffdate[]  is d
    
    %global _masterList, _masterDsts[], _masterValues[], _masterEffdate[]
+   
+   _readList      is dstlist
+'   _readDsts[]    is x
+   _readValues[]  is x
+   _readEffdate[] is d
+   
+   %global _readList,  _readValues[], _readEffDate[]
    
    _masterReg     is x
    _masterDB      is b
@@ -127,7 +149,8 @@ effdates[]  is d
 
 if dsts[] dp then setDsts(dsts[]) endif
 
-list = $dstlist( _masterList, _masterDb,_masterDsts[], _masterValues[], _masterEffdate[])
+list = $dstlist( _masterList, _masterDb, _masterDsts[], _masterValues[], _masterEffdate[])
+list = $dstlist( _readList,   _masterDB, _masterDsts[], _readValues[],    _readEffDate[])
 
 end list
 
@@ -175,6 +198,59 @@ public dynamic function reg() is x
 reg = _masterReg
 end reg
 
+'-------------------------------------------------
+public dynamic function updateByValue(register,uid-dst[],uid-value[], dst[], value[]) is b
+register    is x
+uid-dst[]     is x
+uid-value[]   is x
+dst[]       is x
+value[]     is x
+dst-idx[]     is b
+rc             is b
+idx            is b
+i              is b
+match          is x
+if register dp then setReg(register) endif
+if dst[] dp and value[] dp then put(dst[],value[]) endif
+
+rc = 0
+do while rc++ < $maxarray(uid-dst[])
+   dst-idx[rc] = $find(uid-dst[rc], _masterDsts[], 1, "F")
+   if dst-idx[rc] = 0 then
+      $clear(dst-idx[rc])
+   endif
+enddo
+if dst-idx[] !dp then
+   updateByValue = 99
+   return
+endif
+
+$dblock()
+rc = $dbread(_masterDB, _masterReg, _readList)
+do while rc < 0
+   $clear(match)
+   i = 0
+   do while i++ < $maxarray(dst-idx[])
+      idx = dst-idx[i]
+      if _readValues[idx] != uid-value[i] then
+         match = "N"
+         i = $maxarray(dst-idx[])
+      endif
+   enddo
+   if match = "N" then
+      rc = $dbreadnextdst(_masterDB, _masterReg, _readList)
+   else
+      rc = 99
+'      $clear(_mastereffdate[])
+      updateByValue = $dbupdate(_masterDB, _masterReg, _masterList)
+      return
+   endif
+enddo
+updateByValue = 88
+end updateByValue
+   
+      
+   
 '-------------------------------------------------
 public dynamic function add(register,dst[],value[]) is b
 register    is x
