@@ -150,11 +150,11 @@ _usre-lib            is b
 
 %global _rx-table, _tableclass, _tableid, _headerclass, _rowclass, _rowaction, _voidclass, _addclass, _editclass
 %global _actiondivclass, _actionclass, _b_action, _allowaction, _b_actionclass, _detailclass, _actionlabel, _b_ptr
-%global _actiondivlabel, _allowadd, _b_addlabel, _b_add, _b_add_ptr, _currentonly, _actionform, _actionstat
+%global _actiondivlabel, _allowadd, _b_addlabel, _b_add, _b_add_ptr, _currentonly, _actionform, _actionstat, _current
 
 %global id, rxString, rxdate, mdname, mddea, mdstaff, ndc, drugname, dosage, asdir, prn, freq, unitsper
-%global uom, totalu, inst, addlinst, route, numdays, numrefill, pocstat lastdate, disdate, disphy, disreas
-%global reason, ngm, fs, discom, action, 
+%global uom, totalu, inst, addlinst, route, numdays, numrefill, pocstat, lastdate, disdate, disphy, disreas
+%global reason, ngm, fs, discom, action, stat, _statclass
 
 '%global _new-id, _new-rxString, _new-rxdate, _new-mdname, _new-mddea, _new-mdstaff, _new-ndc, _new-drugname, _new-dosage
 '%global _new-asdir, _new-prn, _new-freq, _new-unitsper, _new-uom, _new-totalu, _new-inst, _new-addlinst, _new-route
@@ -269,7 +269,7 @@ if _re-render = "Y" then
       if _current[i] !dp then _current[i] = iscurrent(i) endif
       if _current[i] = "Y" or _currentOnly != "Y" then
          string = "<tr id='" + _tableid + "-detail-" + i + "' class='" + _rowClass
-         j = $find($varname(stat), dst-idx[],1,"F")
+         j = $find($varname(stat), _dst-idx[],1,"F")
          if j > 0 then
             string += " " + _statClass[j]
          endif
@@ -347,9 +347,9 @@ select b_ptr
 '               if actionidx = 0 then
 '                  actionidx += actiontot
 '               endif
-               $brmsg(_actionopt[actionidx], 1, "WEC")
+'               $brmsg(_actionopt[actionidx], 1, "WEC")
                $clear(err)
-               setNew(_actionopt[actionidx],myidx)
+               setNew(_actionstat[actionidx],myidx)
 
       'addform[] = buildform(myidx,"ADD")[]
 endselect
@@ -370,10 +370,13 @@ endselect
          case "SUBMIT"  err = validate()
                         if err !dp then
                            if myidx > 0 then
-                              startidx = $find($varname(stat),_dst-idx[],1,"F")
-                              _vals[myidx,startidx] = "EXP"
+                           		_newvals[] = _vals[myidx]
+'                              startidx = $find($varname(stat),_dst-idx[],1,"F")
+'                              _vals[myidx,startidx] = "EXP"
                               startidx = $find($varname(lastdate), _dst-idx[],1,"F")
-                              _vals[myidx,startidx] = rxdate - 1
+'                              _vals[myidx,startidx] = rxdate - 1
+                              _newvals[startidx] = rxdate - 1
+                              _d-lib:updateByValue(,_dst[],_vals[myidx],_dst[],_newvals[])
                            endif
                            update()
                            '$clear(_newvals[])
@@ -440,13 +443,13 @@ public dynamic function iscurrent(idx) is x
 idx      is b
 i        is b
 iscurrent = "Y"
-i = $find($varname(lastdate), dst-idx[],1,"F")
+i = $find($varname(lastdate), _dst-idx[],1,"F")
 if i > 0 then
    if $castd(_vals[idx,i]) < $today then
       iscurrent = "N"
    endif
 endif
-i = $find($varname(disdate), dst-idx[],1,"F")
+i = $find($varname(disdate), _dst-idx[],1,"F")
 if i > 0 then
    if $castd(_vals[idx,i]) < $today then
       iscurrent = "N"
