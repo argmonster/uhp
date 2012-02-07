@@ -215,7 +215,7 @@ if dst[] dp and value[] dp then put(dst[],value[]) endif
 
 rc = 0
 do while rc++ < $maxarray(uid-dst[])
-   dst-idx[rc] = $find(uid-dst[rc], _masterDsts[], 1, "F")
+   dst-idx[rc] = $find($uc(uid-dst[rc]), _masterDsts[], 1, "F")
    if dst-idx[rc] = 0 then
       $clear(dst-idx[rc])
    endif
@@ -227,7 +227,7 @@ endif
 
 $dblock()
 rc = $dbread(_masterDB, _masterReg, _readList)
-do while rc < 0
+do while rc < 2
    $clear(match)
    i = 0
    do while i++ < $maxarray(dst-idx[])
@@ -242,6 +242,7 @@ do while rc < 0
    else
       rc = 99
 '      $clear(_mastereffdate[])
+       _mastereffdate[] = _readeffdate[]
       updateByValue = $dbupdate(_masterDB, _masterReg, _masterList)
       return
    endif
