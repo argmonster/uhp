@@ -50,7 +50,23 @@ _current[]     is x
 _d-lib            is b
 
 _rx-table[]       is x
-_actionForm       is x
+
+_addForm          is x
+_b_addlabel       is x
+_b_add            is x
+_b_add_ptr        is x
+
+_b_ptr            is x
+_b_actionclass    is x
+_b_action[]       is x
+_allowaction[]    is x
+_actionForm[]     is x
+_actionNoAdd[]    is x
+_actionExpLast[]  is x
+_actionDC[]       is x
+_statClass[]      is x
+_actionlabel[]    is x
+_actionstat[]      is x
 
 _tableclass       is x
 _tableid          is x
@@ -58,29 +74,19 @@ _headerclass      is x
 _rowclass         is x
 _rowaction[]      is x
 _detailclass      is x
+_actiondivclass   is x
+_actiondivlabel   is x
+_actionclass      is x
 
 _voidclass        is x
 _editclass        is x
 _addclass         is x
 
-_actiondivclass   is x
-_actiondivlabel   is x
 
-_actionclass      is x
-_actionlabel[]    is x
-_actionstat[]      is x
-_statClass[]      is x
 _currentonly      is x
+_freqdct          is x
 
-_b_action[]       is x
-_b_ptr            is x
-_allowaction[]    is x
-_b_actionclass    is x
-
-_b_add            is x
 _allowadd         is x
-_b_add_ptr        is x
-_b_addlabel       is x
 
 _newvals[]        is x
 _newDef[]         is x
@@ -151,10 +157,11 @@ _usre-lib            is b
 %global _rx-table, _tableclass, _tableid, _headerclass, _rowclass, _rowaction, _voidclass, _addclass, _editclass
 %global _actiondivclass, _actionclass, _b_action, _allowaction, _b_actionclass, _detailclass, _actionlabel, _b_ptr
 %global _actiondivlabel, _allowadd, _b_addlabel, _b_add, _b_add_ptr, _currentonly, _actionform, _actionstat, _current
+%global _actionNoAdd, _actionDC, _actionExpLast, _addForm
 
 %global id, rxString, rxdate, mdname, mddea, mdstaff, ndc, drugname, dosage, asdir, prn, freq, unitsper
-%global uom, totalu, inst, addlinst, route, numdays, numrefill, pocstat, lastdate, disdate, disphy, disreas
-%global reason, ngm, fs, discom, action, stat, _statclass
+%global uom, totalu, inst, addlinst, route, numdays, numrefill, pocstat, lastdate, disdate, disphys, disreas
+%global reason, ngm, fs, discom, action, stat, _statclass, _freqdct
 
 '%global _new-id, _new-rxString, _new-rxdate, _new-mdname, _new-mddea, _new-mdstaff, _new-ndc, _new-drugname, _new-dosage
 '%global _new-asdir, _new-prn, _new-freq, _new-unitsper, _new-uom, _new-totalu, _new-inst, _new-addlinst, _new-route
@@ -284,15 +291,15 @@ if _re-render = "Y" then
                  + _actiondivlabel
          j = 0
          do while j++ < $maxarray(_b_action[])
-            if _allowaction[i] != "N" then
+            if _allowaction[j] != "N" then
                string += "<div class='" + _actionclass + "'>"
                        + "<input type='submit' uhp='" + _b_action[j] + "' idx='" 
                        + $mylibhandle + "' idx2='" + idx + "' value='" 
                        + _actionlabel[j] + "' classsel='" + _b_actionclass + "' classnotsel='" 
                        + _b_actionclass + "'/>"
                        + "</div>"
-               idx++
             endif
+               idx++
          enddo
          string += "</div></td>"
          j = 0
@@ -335,32 +342,36 @@ actionidx      is b
 startidx       is b
 myidx          is b
 
+myForm         is x
+
+$clear(actiontot, actionidx, startidx, myidx, myForm)
 select b_ptr
    case 1      'add
                'addform[] = buildform(,"ADD")[]
                setNew("New-Start")
+               myForm = _addForm
    case other  ' one of the 'action' buttons
                actiontot = $maxarray(_b_action[])
                startidx = $num(_b_ptr)
-               myidx = ((b_ptr - 1 - (startidx - 1)) / actiontot) + 1
-               actionidx = $mod(b_ptr,actiontot) + 1
+               myidx = (b_ptr - startidx ) / actiontot
+               actionidx = $mod(`b_ptr - 1`,actiontot) + 1
 '               if actionidx = 0 then
 '                  actionidx += actiontot
 '               endif
-'               $brmsg(_actionopt[actionidx], 1, "WEC")
+               $brmsg($castx(actionidx), 1, "WEC")
                $clear(err)
                setNew(_actionstat[actionidx],myidx)
-
+               myForm = _actionform[actionidx]
       'addform[] = buildform(myidx,"ADD")[]
 endselect
 'if addform[] dp then
    do while 1 = 1
       $clear($endbutton)
       'uhp(addform[])
-      if $checkfile(_actionform) = 0 then
-         uhp(_actionform)
+      if $checkfile(myForm) = 0 then
+         uhp(myForm)
       else
-         $brmsg(_actionform, 1, "WEC")
+         $brmsg(myForm, 1, "WEC")
          return
       endif
       $clear(err)
@@ -370,15 +381,32 @@ endselect
          case "SUBMIT"  err = validate()
                         if err !dp then
                            if myidx > 0 then
-                           		_newvals[] = _vals[myidx]
-'                              startidx = $find($varname(stat),_dst-idx[],1,"F")
-'                              _vals[myidx,startidx] = "EXP"
-                              startidx = $find($varname(lastdate), _dst-idx[],1,"F")
-'                              _vals[myidx,startidx] = rxdate - 1
-                              _newvals[startidx] = rxdate - 1
-                              _d-lib:updateByValue(,_dst[],_vals[myidx],_dst[],_newvals[])
+                           	_newvals[] = _vals[myidx]
+                           	if _actionExpLast[actionidx] = "Y" then
+                                 startidx = $find($varname(lastdate), _dst-idx[],1,"F")
+                                 _newvals[startidx] = $castd(rxdate) - 1
+                                 startidx = $find($varname(stat),_dst-idx[],1,"F")
+                                 _newvals[startidx] = "EXP"
+                                 startidx = _d-lib:updateByValue(,_dst[],_vals[myidx],_dst[],_newvals[])
+                                 $brmsg($castx(startidx),1,"WEC")
+                              endif
+                              if _actionDC[actionidx] = "Y" then
+                                 startidx = $find($varname(disdate), _dst-idx[],1,"F")
+                                 _newvals[startidx] = disdate
+                                 startidx = $find($varname(disphys), _dst-idx[],1,"F")
+                                 _newvals[startidx] = disphys
+                                 startidx = $find($varname(disreas), _dst-idx[],1,"F")
+                                 _newvals[startidx] = disreas
+                                 startidx = $find($varname(discom), _dst-idx[],1,"F")
+                                 _newvals[startidx] = disreas
+                                 startidx = _d-lib:updateByValue(,_dst[],_vals[myidx],_dst[],_newvals[])
+                                 _actionNoAdd[actionidx] = "N"
+                                 $brmsg($castx(startidx),1,"WEC")
+                              endif
                            endif
-                           update()
+                           if _actionNoAdd[actionidx] != "N" then
+                              update()
+                           endif
                            '$clear(_newvals[])
                           _re-render = "Y"
                            return
@@ -397,44 +425,35 @@ option   is x
 idx      is b
 def      is x
 i        is b
-'select option
-'   case "ADD"  action = "New Start"
-               i = 0
-               do while i++ < $maxarray(_dst-idx[])
-                  $clear(def)
-                  _varlistptr = $find(_dst-idx[i], _varlist[],1,"F")
-                  if _dst-idx[] dp then
-                     if idx > 0 then
-                        def = _vals[idx,i]
-                     endif
-                     if _default[i] dp then
-                        select $uc(_default[i])
-                           case "$TODAY"  def = $today
-                           case "$OPER"   def = $oper
-                           case "$OPERSTAFFID"  def = $operstaffid
-                           case "DCT-2071"   def = $dct(2071,$oper)
-                           case other        def = _default[i]
-                        endselect
-                     endif
-                     (void)$putvar(_varlistptr, def)
-                  endif
-               enddo
-               action = option
-               stat = option
-               if drugname dp then
-                  rxstring = dosage + uom + " " + unitsper + " " + route + " " + freq + " "
-                  if prn = "Y" then
-                     rxstring += "prn "
-                  endif
-                  rxstring += "# " + totalu + " " + numrefill + " RF " + inst + addlinst
-               endif
-'   case other
-'               i = 0
-'               do while i++ < $maxarray(_dst-idx[])
-'                  _varlistptr = $find(_dst-idx[i], _varlist[],1,"F")
-'                  (void)$putVar(_varlistptr, _vals[idx,i])
-'               enddo
-'endselect
+i = 0
+do while i++ < $maxarray(_dst-idx[])
+   $clear(def)
+   _varlistptr = $find(_dst-idx[i], _varlist[],1,"F")
+   if _dst-idx[] dp then
+      if idx > 0 then
+         def = _vals[idx,i]
+      endif
+      if _default[i] dp then
+         select $uc(_default[i])
+            case "$TODAY"  def = $today
+            case "$OPER"   def = $oper
+            case "$OPERSTAFFID"  def = $operstaffid
+            case "DCT-2071"   def = $dct(2071,$oper)
+            case other        def = _default[i]
+         endselect
+      endif
+      (void)$putvar(_varlistptr, def)
+   endif
+enddo
+action = option
+stat = option
+if drugname dp then
+   rxstring = dosage + uom + " " + unitsper + " " + route + " " + freq + " "
+   if prn = "Y" then
+      rxstring += "prn "
+   endif
+   rxstring += "# " + totalu + " " + numrefill + " RF " + inst + addlinst
+endif
 end setNew
 
 '-------------------------------------------------------------------------------
@@ -461,115 +480,51 @@ end iscurrent
 '-------------------------------------------------------------------------------
 '-------------------------------------------------------------------------------
 public dynamic function validate() is x
-newdate  is d
-newunit  is b
-newfreq  is b
-newtot   is b
-newdays  is b
-newfill  is b
-newend   is d
-newstaff is x
-newname  is x
-newndc   is x
-newdrug  is x
-i        is b
+i     is b
+f     is n
+t     is x
+if _usre-lib:check_date(_days_to_enter, rxdate, "N") != "Y" then
+   validate += "<li>" + $fmt(_days_to_enter, _e_days_to_enter) + "</li>"
+endif
+if mdname !dp then
+   validate += "<li>Please enter the Prescribers Name</li>"
+endif 
+if drugname !dp then
+   validate += "<li>Drug Name Missing</li>"
+endif
+if unitsper !dp then
+   validate += "<li>Units per Does Missing</li>"
+endif
+if rxdate !dp then
+   validate += "<li>Rx Date Missing</li>"
+endif
+if freq !dp then
+   validate += "<li>Frequency Missing</li>"
+endif
+if unitsper !dp then
+   validate += "<li>Units Per Missing</li>"
+endif
+if totalu !dp then
+   validate += "<li>Number of Pills Missing</li>"
+endif
+if numrefill !dp then
+   validate += "<li>Number of Refills Missing</li>"
+endif
+if validate dp then
+   validate = "<ul>" + validate + "</ul>"
+else
+   if _freqdct dp then
+      i = $casti(_freqdct)
+      t = $dct(i,freq,"1")
+      f = $castn(t)
+      i = $casti(totalu) / f / $casti(unitsper)
+      numdays = $castx(i)
+      $brmsg(t,1,"WEC")
+      i += i * $casti(numrefill)
+      lastdate = $castd(rxdate) + i
+   endif
+endif
 
-'$clear(validate)
-'if _days_to_enter dp and _rxdate dp then
-'   i = $find(_rxdate, _dstname[],1,"F")
-'   if i > 0 then
-'      newdate = $castd(_newvals[i])
-'      if _usre-lib:check_date(_days_to_enter, newdate, "N") != "Y" then
-'         validate += "<li>" + $fmt(_days_to_enter, _e_days_to_enter) + "</li>"
-'      endif
-'   endif
-'endif
-'if _rxdate dp and _rxend dp and _rxunits dp and _rxfreq dp and _rxunittot dp and _rxdays dp and _rxfill dp then
-'   if newdate !dp then
-'      i = $find(_rxdate, _dstname[], 1, "F")
-'      if i > 0 then
-'         newdate = $castd(_newvals[i])
-'         if newdate !dp then
-'            validate += "<li>Date Missing</li>"
-'         endif
-'      endif
-'   endif
-'      
-'   i = $find(_rxunits,_dstname[], 1, "F")
-'   if i > 0 then
-'      newunit = $casti(_newvals[i])
-'      if newunit !dp then
-'         validate += "<li>Units per Does Missing</li>"
-'      endif
-'   endif
-'   i = $find(_rxfreq,_dstname[], 1, "F")
-'   if i > 0 then
-'      newdrug = $dct(_dct_freq,_newvals[i],"1")
-'      newfreq = $casti(newdrug)
-'      $clear(newdrug)
-'      if newfreq !dp then
-'         validate += "<li>Frequency Missing</li>"
-'      endif
-'   endif
-'   i = $find(_rxdays, _dstname[], 1, "F")
-'   if i > 0 then
-'      newdays = $casti(_newvals[i])
-'      if newdays !dp then
-'         validate += "<li>Number of Days Missing</li>"
-'      endif
-'   endif
-'   i = $find(_rxfill, _dstname[], 1, "F")
-'   if i > 0 then
-'      newfill = $casti(_newvals[i])
-'      if newfill !dp then
-'         validate += "<li>Number of Refills Missing</li>"
-'      endif
-'   endif
-'   i = $find(_rxunittot, _dstname[], 1, "F")
-'   if i > 0 then
-'      newtot = newunit * newfreq * newdays * (newfill + 1)
-'      _newvals[i] = newtot
-'   endif
-'   i = $find(_rxend, _dstname[], 1, "F")
-'   if i > 0 then
-'      newend = newdate + `(newdays * (newfill + 1))`
-'      _newvals[i] = newend
-'   endif
-'endif
-'if _rxstaff dp and _rxname dp then
-'   i = $find(_rxstaff,_dstname[],1,"F")
-'   if i > 0 then
-'      if _newvals[i] !dp then
-'         validate += "<li>Staff ID Missing</li>"
-'      else
-'         newstaff = _newvals[i]
-'      endif
-'   endif
-'   i = $find(_rxname,_dstname[], 1, "F")
-'   if i > 0 then
-'      (void)$dbalpha(03, newstaff, newname)
-'      _newvals[i] = newname
-'   endif
-'endif
-'if _rxdrug dp and _rxndc dp then
-'   i = $find(_rxndc,_dstname[],1,"F")
-'   if i > 0 then
-'      if _newvals[i] dp then
-'         newndc = _newvals[i]
-'      else
-'         validate += "<li>Drug Code Missing</li>"
-'      endif
-'   endif
-'   i = $find(_rxdrug,_dstname[],1,"F")
-'   if i > 0 then
-'      newdrug = $dct(_dct_meds, newndc)
-'      _newvals[i] = newdrug
-'   endif
-'endif
-'   
-'if validate dp then
-'   validate = "<ul>" + validate + "</ul>"
-'endif
 end validate
 
 '-------------------------------------------------------------------------------
