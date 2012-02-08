@@ -31,6 +31,8 @@
 '        no match rc = 88
 '     * Update is attempted if matching layer is found
 '        rc = $dbupdate rc
+' TJM 02/08/12 .003
+'  ~ some fixes to updateByValue()
 '------------------------------------------------
 'Benefits to using this lib over simple dbreads
 ' 1. check() will verify the list of dsts are valid
@@ -55,7 +57,7 @@
 '    - Figure out some way to write the data in a useful way.
 '------------------------------------------------------------------------
 
-%version 01.0.002 02/03/12 GCC
+%version 01.0.003 02/08/12 GCC
 
 library lib_DST()
 
@@ -69,11 +71,11 @@ on load do:
    %global _masterList, _masterDsts[], _masterValues[], _masterEffdate[]
    
    _readList      is dstlist
-'   _readDsts[]    is x
+   _readDsts[]    is x
    _readValues[]  is x
    _readEffdate[] is d
    
-   %global _readList,  _readValues[], _readEffDate[]
+   %global _readList,  _readDsts, _readValues[], _readEffDate[]
    
    _masterReg     is x
    _masterDB      is b
@@ -148,9 +150,9 @@ values[]    is x
 effdates[]  is d
 
 if dsts[] dp then setDsts(dsts[]) endif
-
+_readDsts[] = _masterdsts[]
 list = $dstlist( _masterList, _masterDb, _masterDsts[], _masterValues[], _masterEffdate[])
-list = $dstlist( _readList,   _masterDB, _masterDsts[], _readValues[],    _readEffDate[])
+list = $dstlist( _readList,   _masterDB, _readDsts[], _readValues[],    _readEffDate[])
 
 end list
 
@@ -210,8 +212,9 @@ rc             is b
 idx            is b
 i              is b
 match          is x
+temp[]         is x
+tempeff[]      is d
 if register dp then setReg(register) endif
-if dst[] dp and value[] dp then put(dst[],value[]) endif
 
 rc = 0
 do while rc++ < $maxarray(uid-dst[])
@@ -226,23 +229,22 @@ if dst-idx[] !dp then
 endif
 
 $dblock()
-rc = $dbread(_masterDB, _masterReg, _readList)
+rc = $dbread(_masterDB, _masterReg, _masterList)
 do while rc < 2
    $clear(match)
    i = 0
    do while i++ < $maxarray(dst-idx[])
       idx = dst-idx[i]
-      if _readValues[idx] != uid-value[i] then
+      if _masterValues[idx] != uid-value[i] then
          match = "N"
          i = $maxarray(dst-idx[])
       endif
    enddo
    if match = "N" then
-      rc = $dbreadnextdst(_masterDB, _masterReg, _readList)
+      rc = $dbreadnextdst(_masterDB, _masterReg, _masterList)
    else
       rc = 99
-'      $clear(_mastereffdate[])
-       _mastereffdate[] = _readeffdate[]
+      put(dst[],value[])
       updateByValue = $dbupdate(_masterDB, _masterReg, _masterList)
       return
    endif
