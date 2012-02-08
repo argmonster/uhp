@@ -249,7 +249,8 @@ t           is x
 argproc(args[], vals[])
 if _re-render = "Y" then
    $clear(_rx-table[], _vals[])
-   rec.set()
+'   rec.set()
+   _d-lib:setDsts(_dst[])
    rec.read()
    
    idx = $num(_b_ptr)
@@ -334,7 +335,6 @@ b_list[]       is x
 ui[,]          is x
 b_ptr          is b
 
-addform[]      is x
 err            is x
 
 actiontot      is b
@@ -347,73 +347,63 @@ myForm         is x
 $clear(actiontot, actionidx, startidx, myidx, myForm)
 select b_ptr
    case 1      'add
-               'addform[] = buildform(,"ADD")[]
                setNew("New-Start")
                myForm = _addForm
    case other  ' one of the 'action' buttons
                actiontot = $maxarray(_b_action[])
                startidx = $num(_b_ptr)
-               myidx = (b_ptr - startidx ) / actiontot
-               actionidx = $mod(`b_ptr - 1`,actiontot) + 1
-'               if actionidx = 0 then
-'                  actionidx += actiontot
-'               endif
-               $brmsg($castx(actionidx), 1, "WEC")
-               $clear(err)
+               actionidx = $mod(`b_ptr - startidx`,actiontot) + 1
+               myidx = ((b_ptr - actionidx - startidx + 1) / actiontot) + 1
                setNew(_actionstat[actionidx],myidx)
                myForm = _actionform[actionidx]
-      'addform[] = buildform(myidx,"ADD")[]
 endselect
-'if addform[] dp then
-   do while 1 = 1
-      $clear($endbutton)
-      'uhp(addform[])
-      if $checkfile(myForm) = 0 then
-         uhp(myForm)
-      else
-         $brmsg(myForm, 1, "WEC")
-         return
-      endif
-      $clear(err)
-      select $endbutton
-         case "CANCEL"  $clear(_newvals[])
-                        return
-         case "SUBMIT"  err = validate()
-                        if err !dp then
-                           if myidx > 0 then
-                           	_newvals[] = _vals[myidx]
-                           	if _actionExpLast[actionidx] = "Y" then
-                                 startidx = $find($varname(lastdate), _dst-idx[],1,"F")
-                                 _newvals[startidx] = $castd(rxdate) - 1
-                                 startidx = $find($varname(stat),_dst-idx[],1,"F")
-                                 _newvals[startidx] = "EXP"
-                                 startidx = _d-lib:updateByValue(,_dst[],_vals[myidx],_dst[],_newvals[])
-                                 $brmsg($castx(startidx),1,"WEC")
-                              endif
-                              if _actionDC[actionidx] = "Y" then
-                                 startidx = $find($varname(disdate), _dst-idx[],1,"F")
-                                 _newvals[startidx] = disdate
-                                 startidx = $find($varname(disphys), _dst-idx[],1,"F")
-                                 _newvals[startidx] = disphys
-                                 startidx = $find($varname(disreas), _dst-idx[],1,"F")
-                                 _newvals[startidx] = disreas
-                                 startidx = $find($varname(discom), _dst-idx[],1,"F")
-                                 _newvals[startidx] = disreas
-                                 startidx = _d-lib:updateByValue(,_dst[],_vals[myidx],_dst[],_newvals[])
-                                 _actionNoAdd[actionidx] = "N"
-                                 $brmsg($castx(startidx),1,"WEC")
-                              endif
+do while 1 = 1
+   $clear($endbutton)
+   if $checkfile(myForm) = 0 then
+      uhp(myForm)
+   else
+      $brmsg(myForm, 1, "WEC")
+      return
+   endif
+   $clear(err)
+   select $endbutton
+      case "CANCEL"  $clear(_newvals[])
+                     return
+      case "SUBMIT"  err = validate()
+                     if err !dp then
+                        if myidx > 0 then
+                        	_newvals[] = _vals[myidx]
+                        	if _actionExpLast[actionidx] = "Y" then
+                              startidx = $find($varname(lastdate), _dst-idx[],1,"F")
+                              _newvals[startidx] = $castd(rxdate) - 1
+                              startidx = $find($varname(stat),_dst-idx[],1,"F")
+                              _newvals[startidx] = "EXP"
+                              startidx = _d-lib:updateByValue(,_dst[],_vals[myidx],_dst[],_newvals[])
+                              _re-render = "Y"
                            endif
-                           if _actionNoAdd[actionidx] != "N" then
-                              update()
+                           if _actionDC[actionidx] = "Y" then
+                              startidx = $find($varname(disdate), _dst-idx[],1,"F")
+                              _newvals[startidx] = disdate
+                              startidx = $find($varname(disphys), _dst-idx[],1,"F")
+                              _newvals[startidx] = disphys
+                              startidx = $find($varname(disreas), _dst-idx[],1,"F")
+                              _newvals[startidx] = disreas
+                              startidx = $find($varname(discom), _dst-idx[],1,"F")
+                              _newvals[startidx] = disreas
+                              startidx = _d-lib:updateByValue(,_dst[],_vals[myidx],_dst[],_newvals[])
+                              _actionNoAdd[actionidx] = "N"
+                              _re-render = "Y"
                            endif
-                           '$clear(_newvals[])
-                          _re-render = "Y"
-                           return
                         endif
-      endselect
-   enddo
-'endif
+                        if _actionNoAdd[actionidx] != "N" then
+                           update()
+                        endif
+                        '$clear(_newvals[])
+                       _re-render = "Y"
+                        return
+                     endif
+   endselect
+enddo
 
 end submit
 
@@ -453,6 +443,8 @@ if drugname dp then
       rxstring += "prn "
    endif
    rxstring += "# " + totalu + " " + numrefill + " RF " + inst + addlinst
+ else
+ 	$clear(rxstring)
 endif
 end setNew
 
@@ -517,9 +509,8 @@ else
       i = $casti(_freqdct)
       t = $dct(i,freq,"1")
       f = $castn(t)
-      i = $casti(totalu) / f / $casti(unitsper)
+      i = $casti(totalu) / (f / $casti(unitsper))
       numdays = $castx(i)
-      $brmsg(t,1,"WEC")
       i += i * $casti(numrefill)
       lastdate = $castd(rxdate) + i
    endif
@@ -542,60 +533,6 @@ $clear(_vals[], _newvals[])
 'rec.read()
 _re-render = "Y"
 end update
-
-'-------------------------------------------------------------------------------
-'-------------------------------------------------------------------------------
-public dynamic function buildform(copyidx, option)[] is x
-copyidx     is b
-option      is x
-
-form[]      is x
-label       is x
-html        is x
-hide[]      is x
-ui[]        is x
-i           is b
-
-'if copyidx > 0 then
-'   _newvals[] = _dstvals[copyidx]
-'else
-'   _newvals[] = _newdef[]
-'endif
-'select option
-'   case "ADD"  ui[] = _addui[]
-'               hide[] = _addhide[]
-'   case "EDIT"
-'   case "DC"
-'endselect
-'
-'if hide[] !dp then hide[] = _dsthide[] endif
-'form[1] = "<html><body submitlabel='Add' cancellabel='Cancel'><table><tr class='center'><td>Client ID: <literal value='_regid' /></td><td>Client Name: <literal value='_regid' edittype='DB' editnum='2' /></td>"
-'form[1] += "<td>DOB: <literal editnum='C.BD' edittype='DST' value='_regid' /></td></tr></table><hr /><br /><h1>medications</h1><br />"
-'form[1] += "<div class='error'><literal value='err' /></div>"
-'form[1] += "<div class='error'><input type='text' uhp='" + $varname(_rxString) + "' id='rxString' /></div>"
-'i = 0
-'do while i++ < $maxarray(_dstname[])
-'   if $uc(hide[i]) != "Y" then
-'      if _addlabel[i] !dp then
-'         _addlabel[i] = _dstlabel[i]
-'      endif
-'      html = "<div id='rxui-" + i + "' class='rxitem center'><span id='rxui-label-" + i + "' class='rxlabel'>" + _addlabel[i] + "</span>"
-'      html += "<span id='rxui-val-" + i + "' class='rxval'>"
-'      if ui[i] !dp then
-'         html += "<input type='text' uhp='" + $varname(_newvals[]) + "' id='" + _dstname[i] + " idx='" + i + "' />"
-'      else
-'         html += "<" + ui[i] + " uhp='" + $varname(_newvals[]) + "' id='" + _dstname[i] + " 'idx='" + i + "' />"
-'      endif
-'      html += "</span></div><br />"
-'      (void)$arrPush(form[],html)
-'   endif
-'enddo
-'(void)$arrpush(form[],"<link rel='stylesheet' href='/cmhcbui/cmhcbuilocal/css/uhp.css'></link>")
-'(void)$arrpush(form[],"<script></script>")
-'
-'(void)$arrpush(form[],"</body></html>")
-'buildform[] = form[]
-end buildform
 
 
 '-------------------------------------------------------------------------------
@@ -674,28 +611,3 @@ rec.read = i
 end rec.read
 
 %include inc_uhp
-
-%preload _rxProc line-ending(cr)
-<script>
-   $("#rxString").change(function(){
-      var rxParts = this.value.split(" ");
-      //alert(rxParts);
-      $("#rx-6").val(rxParts[0]);
-      //alert($("#rx-6").value);
-      $("#rx-8").val(parseInt(rxParts[1]));
-      alert(rxParts[1].replace(parseInt(rxParts[1]),""));
-      $("#rx-9").val(rxParts[1].replace(parseInt(rxParts[1]),""));
-      alert(rxParts.length);
-      if(rxParts.length==5){
-         $("#rx-10").val(parseInt(rxParts[2]));
-         $("#rx-11").val(rxParts[3]);
-         $("#rx-12").val(rxParts[4]);
-      }
-      else{
-         $("#rx-10").val('1');
-         $("#rx-11").val(rxParts[2]);
-         $("#rx-12").val(rxParts[3]);
-      }
-   });
-</script>
-%endpreload
