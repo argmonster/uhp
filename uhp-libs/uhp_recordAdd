@@ -24,6 +24,7 @@ _varname       is x
 _varptr       is b
 _varptr2      is b
 _uhp-end       is b
+_max           is b
 _btn       is x
 _b_name        is x
 _b_sumbit[]    is x
@@ -36,33 +37,40 @@ _finlabel     is x
 _d-lib         is b
 _lock[]        is x
 _lockptr       is b
+_save          is b
 
 %global _regid, _dstHead, _dstname[], _dstlabel, _dstvals[], _dstedit, _ui[], _render[],_re-render
 %global _list, _db, _d-lib, _id, _dstDef, _dstedittype, _dsteditnum
 %global _varlist, _varlistptr, _vartype
 %global _varname, _varptr, _varptr2, _btn, _uhp-end
 %global _addptr, _finptr, _rmptr, _addlabel, _rmlabel, _finlabel
-%global _b_name, _lock[], _lockedonly, _lockptr, _disponly
+%global _b_name, _lock[], _lockedonly, _lockptr, _disponly, _save, _max
 
 on load do:
    _addptr = 1
-'   _finptr = 2
+   _finptr = 2
    _rmptr = 3
    _addlabel = "Add"
    _rmlabel = "x"
-'   _finlabel = "Finalize"
+   _finlabel = "Finalize"
    '_varptr = 1
    (void)$loadlib(_d-lib, "lib_DST")
 return
 
 on unload do:
-   i = 0
-   do while i++ < $maxarray(_dstvals[])
-      if _dstvals[i] dp then
-         _d-lib:add(_regid, _dstname[], _dstvals[i])
-         _lock[i] = "Y"
-      endif
-   enddo
+   i is b
+   if _save = "Y"
+'            if _d-lib !dp then
+               (void)$loadlib(_d-lib, "lib_DST")
+'            endif
+      i = 0
+      do while i++ < $maxarray(_dstvals[])
+         if _dstvals[i] dp then
+            _d-lib:add(_regid, _dstname[], _dstvals[i])
+            _lock[i] = "Y"
+         endif
+      enddo
+   endif
 return
 
 public dynamic function render(args[], vals[], vars[], set-vals[])[] is x
@@ -85,77 +93,84 @@ argproc(args[],vals[])
 ptr = _varptr
 ptr2 = _varptr2
 if _render[] !dp then
-   if _id !dp then _id = $mylibhandle endif
-   (void)$arrpush(_render[], `"<table id='" + _id + "' class='recordDisplay'>"`)
-   'header row
-   string = "<tr id='" + _id + "-head' class='recordHead'><td></td>"
-   i = 0
-   do while i++ < $maxarray(_dstlabel[])
-      string += "<td id='" + _id + "-header-" + i + "'>" + _dstlabel[i] + "</td>"
-   enddo
-   string += "</tr>"
-   (void)$arrpush(_render[], string)
-   
-   max = $maxarray(_dstvals[])
-   if _disponly != "Y" then
-      max++
+   if _max !dp then
+      _max = $maxarray(_dstvals[])
    endif
-   i = 0
-   do while i++ < max
-      temp-rm = _rmptr + i
-      string =  "<tr id='" + _id + "-" + i + "' class='recordDetail'><td id='action-" + i + "'>"
-'      if _lock[i] != "Y" and $uc(_lockedonly) != "Y" then
-     if _disponly != "Y" then
-         string += "<input type='submit' uhp='" + _btn + "' value='" + _rmlabel + "' idx='" + $mylibhandle + "' "
-                + "idx2='" + temp-rm + "' classsel='link' classnotsel='link' />"
-      endif
-      string += "</td>"
-      j = 0
-      do while j++ < $maxarray(_dstlabel[i])
-         string += "<td id='" + _id + "-" + i + "-" + j + "'>" 
-         if _varptr2 dp then
-            ptr2++
-         else
-            ptr++
-         endif
-'         if _lock[i] != "Y" and $uc(_lockedonly) != "Y" then
-         if _disponly = "Y" then
-            string += "<literal value='" + _varname + "' "
-            if _dstedittype[j] dp and _dsteditnum[j] dp then
-               string += "edittype='" + _dstedittype[j] + "' editnum='" + _dsteditnum[j] + "' "
-            endif
-         else
-            string +=  "<" + _ui[j] + " uhp='" + _varname + "' "
-            if i = max and _dstdef[j] dp then
-               (void)$arrPush(vars[], `_varname + "|" + ptr + "|" + ptr2`)
-               (void)$arrPush(set-vals[], _dstdef[j])
-            endif
-         endif
-         string += "idx='" + ptr + "' idx2='" + ptr2 + "' />"
-         if _dstedit[j] = "Y" then
-            string += "<br /><varedit uhp='" + _varname + "' idx='" + ptr + "' idx2='" + ptr2 + "' />"
-         endif
-         string += "</td>"
+   max = _max
+'   max = $maxarray(_dstvals[])
+'   if _disponly != "Y" then
+'      max++
+'   endif
+   if max > 0 then
+      if _id !dp then _id = $mylibhandle endif
+      (void)$arrpush(_render[], `"<table id='" + _id + "' class='recordDisplay'>"`)
+      'header row
+      string = "<tr id='" + _id + "-head' class='recordHead'><td></td>"
+      i = 0
+      do while i++ < $maxarray(_dstlabel[])
+         string += "<td id='" + _id + "-header-" + i + "'>" + _dstlabel[i] + "</td>"
       enddo
-'      do while j++ < $maxarray(_dstvals[i])
-'         string += "<td>" + _dstvals[i] + "|</td>"
-'      enddo
-      if _varptr2 dp then
-         _uhp-end = ptr2
-      else
-         _uhp-end = ptr
-      endif
       string += "</tr>"
       (void)$arrpush(_render[], string)
-   enddo
-   string = "</table>"
-   if $uc(_lockedonly) != "Y" then
+      
+      i = 0
+      do while i++ < max
+         temp-rm = _rmptr + i
+         string =  "<tr id='" + _id + "-" + i + "' class='recordDetail'><td id='action-" + i + "'>"
+   '      if _lock[i] != "Y" and $uc(_lockedonly) != "Y" then
+        if _disponly != "Y" then
+            string += "<input type='submit' uhp='" + _btn + "' value='" + _rmlabel + "' idx='" + $mylibhandle + "' "
+                   + "idx2='" + temp-rm + "' classsel='link' classnotsel='link' />"
+         endif
+         string += "</td>"
+         j = 0
+         do while j++ < $maxarray(_dstlabel[])
+            string += "<td id='" + _id + "-" + i + "-" + j + "'>" 
+            if _varptr2 dp then
+               ptr2++
+            else
+               ptr++
+            endif
+   '         if _lock[i] != "Y" and $uc(_lockedonly) != "Y" then
+            if _disponly = "Y" then
+               string += "<literal value='" + _varname + "' "
+               if _dstedittype[j] dp and _dsteditnum[j] dp then
+                  string += "edittype='" + _dstedittype[j] + "' editnum='" + _dsteditnum[j] + "' "
+               endif
+                string += "idx='" + ptr + "' idx2='" + ptr2 + "' />"
+            else
+               string +=  "<" + _ui[j] + " uhp='" + _varname + "' " + "id='" + $replace(" ","_",_dstlabel[j]) + "-" + i + "' "
+               string += "idx='" + ptr + "' idx2='" + ptr2 + "' />"
+               if i = max and _dstdef[j] dp then
+                  (void)$arrPush(vars[], `_varname + "|" + ptr + "|" + ptr2`)
+                  (void)$arrPush(set-vals[], _dstdef[j])
+               endif
+               if _dstedit[j] = "Y" then
+                  string += "<br /><varedit uhp='" + _varname + "' idx='" + ptr + "' idx2='" + ptr2 + "' />"
+               endif
+            endif
+            string += "</td>"
+         enddo
+   '      do while j++ < $maxarray(_dstvals[i])
+   '         string += "<td>" + _dstvals[i] + "|</td>"
+   '      enddo
+         if _varptr2 dp then
+            _uhp-end = ptr2
+         else
+            _uhp-end = ptr
+         endif
+         string += "</tr>"
+         (void)$arrpush(_render[], string)
+      enddo
+      string = "</table>"
+   endif
+   if $uc(_disponly) != "Y" then
       string += "<div id='recFoot'><input type='submit' uhp='" + _btn 
           + "' value='" + _addlabel + "' idx='" + $mylibhandle + "' " + "idx2='" + _addptr + "' "
+          + "classsel='link' classnotsel='link' />"
+          + "<input type='submit' uhp='" + _btn 
+          + "' value='" + _finlabel + "' idx='" + $mylibhandle + "' " + "idx2='" + _finptr + "' "
           + "classsel='link' classnotsel='link' /></div>"
-'          + "<input type='submit' uhp='" + _btn 
-'          + "' value='" + _finlabel + "' idx='" + $mylibhandle + "' " + "idx2='" + _finptr + "' "
-'          + "classsel='link' classnotsel='link' /></div>"
    endif
    (void)$arrpush(_render[],string)
 endif
@@ -186,6 +201,7 @@ else
 endif
 select b_ptr
    case 1      gosub S_UPDATE    'add button
+               _max = j + 1
 
    case 2      gosub S_UPDATE    'finalize button
                'write the orders
@@ -221,6 +237,7 @@ select b_ptr
                      ui[ptr,ptr2] = _dstvals[j,i]
                   enddo
                enddo
+               _max--
 endselect
 $clear(_render[])
 return

@@ -690,7 +690,7 @@ goback
 
 _INIT:
 
-   if parmfile = "md-note-mallet.html" then
+   if parmfile = "note-md.html" then
       note = mallet_note
    endif
 
@@ -844,8 +844,6 @@ enddo
 end draft.decode
 
 %preload mallet_note line-ending(cr)
-Mental Status Exam:
-
 Comments:
 
 Appearance: {appear}
@@ -867,6 +865,4 @@ Insight: {insight}
 Suicidal: {suic}
 Violent/Homicidal: {viol}
 Reasoning: {reas}
-
-Physical Exam: {phys}
 %endpreload

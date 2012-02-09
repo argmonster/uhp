@@ -263,6 +263,7 @@ value[]     is x
 if register dp then
    setReg(register)
 endif
+if _masterDsts[] !dp then setDsts(dst[]) endif
 if dst[] dp and value[] dp then
    put(dst[], value[])
 endif
