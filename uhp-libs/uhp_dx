@@ -77,8 +77,8 @@ edittype    is x
 xno         is x
 editno      is b
 renderval   is x
-if _out[] !dp then
    argproc(args[],vals[])
+if _out[] !dp then
    dx.build()
    dx.read()
    'render
@@ -153,6 +153,7 @@ do while i++ < $maxarray(args[], vals[])
                         _axlabel[x] = vals[i]
    endselect
 enddo
+$clear(_out[])
 end argproc
 
 public dynamic function dx.build() is null

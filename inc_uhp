@@ -564,6 +564,10 @@ _DROPBOX:
       (void)$arrPush(value[1], "OTHER")
       (void)$arrPush(label[1], "Other")
    endif
+   string = getAttVal("ID", attName[], attValue[], varlist[])
+   if string dp then
+      (void)$assignobj(string)
+   endif
    i = 0
    do while i++ < $maxarray(value[], label[])
       string = $uc(inputMap) + "-" + $uc(value[i]) + "-" + idxptr + "-" + idx2ptr
@@ -609,6 +613,8 @@ _BLOCK:
    temp[3] = getAttval("IDX", attName[], attValue[], varlist[])
    idxptr = $num(temp[3])
    temp[4] = getAttval("IDX2", attName[], attValue[], varlist[])
+   temp[9] = getAttval("DISPTYPE", attName[], attValue[], varlist[])
+   if temp[9] !dp then temp[9] = "block" endif
    idx2ptr = $num(temp[4])
    varptr = findvar(temp[1], varList[])
    copyptr = $varptr(main[])
@@ -619,13 +625,13 @@ _BLOCK:
       string = main[1,idxptr]
    endif
    if string = temp[2] then
-      temp[6] = "block"
+      temp[6] = temp[9]
    else
       temp[6] = "none"
    endif
    temp[8] = getAttVal("CLASS",attName[],attValue[],varlist[])
    string = temp[1] + "-" + temp[2] + "-" + temp[3] + "-" + temp[4]
-   string = "<div id='scrBlock" + $uc(string) + $uc(string) + "' class='" + temp[8] + "' style='display:" + temp[6] + "'>"
+   string = "<span id='scrBlock" + $uc(string) + $uc(string) + "' class='" + temp[8] + "' style='display:" + temp[6] + "'>"
    $ctag(string)
 
 goback
@@ -634,7 +640,7 @@ goback
 ' the uhp hidden block close tag
 '-------------------------------------
 _ENDBLOCK:
-   $ctag("</div>")
+   $ctag("</span>")
 goback
 
 '-------------------------------------
@@ -844,7 +850,7 @@ _LIBRARY:
    endif
    'garbage gets shoved into control[contptr,>1] and I don't know why
    'clear the row and reset the library handle every time to workaround
-   $clear(lib-return[], control[contptr])
+   $clear(lib-return[], control[contptr],lib-var[], lib-val[])
    control[contptr,1] = templib
    'do something to make sure 'render()' is in the library?
    lib-return[] = templib:render(attName[], attValue[],lib-var[], lib-val[])[]

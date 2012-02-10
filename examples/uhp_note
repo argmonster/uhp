@@ -12,6 +12,7 @@ retcode     is b
 
 'temp var for testing / demo
 mallet_note is x
+baker_note  is x
 '***************************
 
 ntevent     is x
@@ -68,6 +69,7 @@ e.type      is x
 tempend     is t
 e.erkey[]   is x
 
+p.key       is x
 
 p.staff[]   is x
 p.date[]    is x
@@ -108,6 +110,7 @@ t_ptr       is b
 t_visit[]   is b
 t_title[]   is x
 b_tab[]     is x
+reportTab   is x
 
 'script call variables
 b_script[]  is x
@@ -210,19 +213,8 @@ do while 1 = 1
    select $endbutton
       case "CANCEL"  'return
                      draft_handle:dr_cancel("Save Draft Before Closing?", regid,,$oper,$scriptid,suffix)
-      case "SUBMIT"  if ++t_ptr > $maxarray(mainform[]) then
-                        t_ptr = $maxarray(mainform[])
-'                        _callpoint = 1
-'                        gosub _NTAFTERSCRIPT
-'                        _callpoint = 2
-'                        gosub _NTAFTERSCRIPT
-'                        _callpoint = 3
-'                        gosub _NTAFTERSCRIPT
-                        gosub _VALIDATE
-                        if err[] !dp then
-                           gosub _SAVE
-                        endif
-                     endif
+      case "SUBMIT"  'refresh
+                     ++t_ptr
       case other     
          select "Y"
             case b_dst-load
@@ -279,6 +271,19 @@ do while 1 = 1
                endif
          endselect
    endselect
+   if t_ptr > $maxarray(mainform[]) then
+      t_ptr = $maxarray(mainform[])
+'                        _callpoint = 1
+'                        gosub _NTAFTERSCRIPT
+'                        _callpoint = 2
+'                        gosub _NTAFTERSCRIPT
+'                        _callpoint = 3
+'                        gosub _NTAFTERSCRIPT
+      gosub _VALIDATE
+      if err[] !dp then
+         gosub _SAVE
+      endif
+   endif
 enddo
 return
 
@@ -333,6 +338,10 @@ _PREFORM:
          l_tab += "<input type='submit' uhp='" + $varname(b_tab[]) + "' idx='" + i + "' value='" + string + "' "
                + "classsel='" + class + "' classnotsel='" + class + "' />"
       enddo
+      if reportTab dp then
+         l_tab += "<input type='submit' uhp='" + $varname(b_tab[]) + "' idx='" + i + "' value='" + reportTab
+               + "' classsel='st_ina' classnotsel='st_ina' />"
+      endif
    endif
 goback
 
@@ -549,6 +558,10 @@ _WRITEEVENT:
             'issue saving isn
          endif
       endif
+      'remove the planned event if there is one
+      if p.key dp then
+         e-lib:removeevents(p.key)
+      endif
    endif
 goback
 
@@ -692,6 +705,9 @@ _INIT:
 
    if parmfile = "note-md.html" then
       note = mallet_note
+   endif
+   if parmfile = "note-md-test.html" or parmfile = "note-md-child.html" then
+      note = baker_note
    endif
 
    (void)$loadlib(client-lib, "lib_CLIENT")
@@ -844,7 +860,8 @@ enddo
 end draft.decode
 
 %preload mallet_note line-ending(cr)
-Comments:
+
+
 
 Appearance: {appear}
 Attitude: {tude}
@@ -865,4 +882,29 @@ Insight: {insight}
 Suicidal: {suic}
 Violent/Homicidal: {viol}
 Reasoning: {reas}
+
+%endpreload
+
+%preload baker_note line-ending(cr)
+
+
+
+Appearance: {appear}
+Attitude: {tude}
+PsychoMotor: {motor}
+Mood: {mood}
+Affect: {affect}
+Speech: {speech}
+Thought Process: {proc}
+Thought Content: {cont}
+Perceptual: {prec}
+Congnition: {cogn}
+Level of Consciousness: {consc}
+Orientation: {orien}
+Memory: {mem}
+Intelligence: {intell}
+Judgement: {judge}
+Insight: {insight}
+Reasoning: {reas}
+
 %endpreload

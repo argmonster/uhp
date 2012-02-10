@@ -1,0 +1,109 @@
+<html>
+<body submitlabel='NULL' cancellabel='Back'>
+<table>
+   <tr class='center'>
+      <td>Client ID: <literal value='regid' /></td>
+      <td>Client Name: <literal value='regid' edittype='DB' editnum='2' /></td>
+      <td>DOB: <literal editnum='C.BD' edittype='DST' value='regid' /></td>
+   </tr>
+</table>
+<hr />
+<div class='center'>
+   <h1><literal value='e.ser' edittype='sac' /></h1>
+</div>
+<div class='short'>
+   <span class='left'>
+      <span class='datatag'>Service: </span>(<literal value='e.ser' />) <literal value='e.ser' edittype='SAC' /> 
+      <br />
+      <span class='datatag'>RU: </span>(<literal value='e.ru' />) <literal value='e.ru' edittype='RU'/>
+   </span>
+   <span class='right'>
+      <span class='datatag'>Service Date: </span><literal value='e.date' />
+      <br />
+      <span class='datatag'>Start Time: </span><literal value='e.start' />
+      <br />
+      <span class='datatag'>Duration: </span><literal value='e.Dur' />
+      <br />
+      <span class='datatag'>End Time: </span><literal value='e.end' />
+      <br />
+      <span class='datatag'>Recipient: </span>(<literal value='e.recip' />)<literal value='e.recip' edittype='dct' editnum='11' />
+      <br />
+      <span class='datatag'>Attendance: </span>(<literal value='e.att' />)<literal value='e.att' edittype='dct' editnum='12' />
+      <br />
+      <span class='datatag'>Location: </span>(<literal value='e.loc' />)<literal value='e.loc' edittype='dct' editnum='13' />
+
+   </span>
+</div>
+<br />
+<br />
+<literal value='note' class='full' />
+<div>
+   <h3>Diagnosis</h3>
+</div>
+<library uhp='u-note-lib' idx='2' name='uhp_dx' regid='client' 
+         dxStaff='c.dxstaff' staffLabel='Diagnosing Staff: '
+         dxdate='c.dxdate' dateLabel='Diagnosis Date: '
+         axis-1-1='c.dxaxi1mh' axis-1-2='c.dxaxi2mh' axis-1-3='c.dxaxi3mh'
+         axis-2-1='c.dxaxii1' axis-2-2='c.dx.iisec'
+         axis-3-1='c.dxaxiii1' axis-3-2='c.dxaxiii2' axis-3-3='c.dxaxiii3'
+         axis-4-1='c.dx.iv'
+         axis-5-1='c.dx.v'
+         dxEdit-1='DB-71'
+         axLabel-1='Axis I' axLabel-2='Axis II' axLabel-3='Axis III' axLabel-4='Axis IV' axLabel-5='Axis V' />
+<div class='center'>
+   <h3>Medications</h3>
+      <library uhp='u-note-lib' idx='45' name='uhp_rx' regid='client' 
+         tableid='rx' tableclass='recordDisplay' headerclass='recordHead' rowclass='recordRow'
+         detailclass='recordDetail' voidclass='void' editclass='edit' addclass='add' 
+         allowadd='N' currentonly='Y' 
+         rxdate='$$rx.date' rxend='$$rx.last.date' rxdc='$$rx.dis.date'
+         dstname-1="$$rx.date" dstlabel-1='Date'
+         dstname-2="$$rx.md.name" dstlabel-2='Doctor'
+         dstname-3="$$rx.drug.name" dstlabel-3='Drug'
+         dstname-4="$$rx.dosage" dstlabel-4='Dosage'
+         dstname-5="$$rx.uom" dstlabel-5=' '
+         dstname-6="$$rx.units.per" dstlabel-6=' '
+         dstname-7="$$rx.route" dstlabel-7=' '
+         dstname-8="$$rx.freq" dstlabel-8=' '
+         dstname-9="$$rx.prn" dstlabel-9='prn'
+         dstname-10="$$rx.dis.date" dsthide-10='Y'
+         dstname-11="$$rx.last.date" dsthide-11='Y'
+         />
+</div>
+<div class='center'>
+   <h3>Vital Statistics</h3>
+   <span class='datatag space'>Date: </span><literal value='regid' edittype='DST' editnum='c.chvt.date' />
+   <span class='datatag space'>Height (inches): </span><literal value='regid' edittype='DST' editnum='c.chvt.height' />
+   <span class='datatag space'>Weight (pounds): </span><literal value='regid' edittype='DST' editnum='c.chvt.weight' />
+   <span class='datatag space'>Pulse: </span><literal value='regid' edittype='DST' editnum='c.chvt.pulse' />
+   <span class='datatag space'>Blood Pressure: </span><literal value='regid' edittype='DST' editnum='c.chvt.bps' />
+   <span class='datatag space'>/</span><literal value='regid' edittype='DST' editnum='c.chvt.bpd' />
+</div>
+
+<div class='center'>
+   <h3>Labs</h3>
+   <library uhp='u-note-lib' idx='3' name='uhp_recordAdd' regid='client' id='labs' disponly='Y' save='Y'
+         dstname-1='c.lo.date' dstlabel-1='Order Date'
+         dstname-2='c.lo.staff' dstlabel-2='Order Staff' dstdef-2='$operstaffid' dstedit-2='Y' dstedittype-2='DB' dsteditnum-2='3'
+         dstname-3='c.lo.code' dstlabel-3='Order Code' dstedittype-3='dct' dsteditnum-3='9330'
+         dstname-4='c.lo.desc' dstlabel-4='Details'
+         varname='objinfo' varptr='1' varptr2='100' />
+</div>
+<div>
+   <span class='datatag space'>Next Appointment In: </span><literal value='next-appt' />
+   <span class='datatag space'>Return to Clinic: _________________________ </span>
+</div>
+
+
+<div class='center'>
+   <snap uhp='snapid' title='Doc Note' formid='PROGNOTE' dbnum='2' regid='client' />
+</div>
+<link rel='stylesheet' href='/cmhcbui/cmhcbuilocal/css/uhp.css'></link>
+<link rel='stylesheet' href='/cmhcbui/cmhcbuilocal/css/jquery-ui-1.8.13.custom.css'></link>
+<script language='javascript' type='text/javascript' src='/cmhcbui/cmhcbuilocal/js/jquery-1.5.1.min.js'></script>
+<script src='/cmhcbui/cmhcbuilocal/js/jquery-ui-1.8.14.custom.min.js'></script>
+<script type='text/javascript'>
+   $('.recordHead').addClass('datatag');
+</script>
+</body>
+</html>

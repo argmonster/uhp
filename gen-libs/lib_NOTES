@@ -1,0 +1,285 @@
+%define clientdb 2
+
+library lib_NOTES()
+
+_client[]         is x
+_idx              is b
+_txblob[]         is x
+
+%global _client[], _idx, _txblob[]
+
+public dynamic function isn.doc.add(parmfile,option, key, e.date, snapid, $$isn.dlc, $$isn.dtp, $$isn.did, $$isn.dsr, $$isn.didid) is b
+parmfile is x
+key      is x
+e.date      is d
+option   is x
+snapid      is x
+rechead     is h
+$$isn.doc   is x
+$$isn.dlc      is x
+$$isn.dtp    is x
+$$isn.did      is x
+$$isn.dsr      is x
+$$isn.didid      is x
+
+isndb       is b
+opt         is x
+
+'make sure we have a register to update
+if key !dp then
+   isn.doc.add = 101
+   return
+endif
+'default the isn dsts
+$$isn.doc = $varname($$isn.doc)
+$$isn.dlc = $varname($$isn.dlc)
+$$isn.dtp = $varname($$isn.dtp)
+$$isn.did = $varname($$isn.did)
+$$isn.dsr = $varname($$isn.dsr)
+$$isn.didid = $varname($$isn.didid)
+opt = "SYS"
+isndb = 9
+'let the parmfile override
+if parmfile dp then
+   getparm(parmfile)
+endif
+getoption(option)
+'map the dsts
+$setvarnameo(rechead, $$isn.doc)
+$setvarnameo($$isn.dlc, $$isn.dlc)
+$setvarnameo($$isn.dtp, $$isn.dtp)
+$setvarnameo($$isn.did, $$isn.did)
+$setvarnameo($$isn.dsr, $$isn.dsr)
+$setvarnameo($$isn.didid, $$isn.didid)
+
+select opt 
+   case "SYS"  $$isn.dlc = "DBX"
+               $$isn.dtp = "$NT"
+               $$isn.did = $format(e.date,"MMDDYYYY") + "65000$ISN"
+               $$isn.dsr = "ECET"
+               $$isn.didid = snapid
+               'sid = need to pass in snap id ?
+               'if sid !dp then
+   case other  isn.doc.add = 102
+               return
+endselect
+$dblock()
+(void) $dbpoint(isndb, key, rechead, $$isn.didid, $$isn.dlc, $$isn.dtp, $$isn.did, $$isn.dsr)
+isn.doc.add = $dbadddst(isndb, key, rechead, $$isn.didid, $$isn.dlc, $$isn.dtp, $$isn.did, $$isn.dsr)
+end isn.doc.add
+
+
+'-------------------------------
+public dynamic function client.find(client) is b
+client      is x
+if client !dp then client.find = -1, return endif
+_idx = $find(client, _client[], 1, "F")
+client.find = _idx
+end client.find
+
+'-------------------------------
+public dynamic function client.add(client) is null
+client      is x
+if client dp then
+   _idx = $maxarray(_client[]) + 1
+   _client[_idx] =  client
+endif
+end client.add
+
+'-------------------------------
+public dynamic function group.get(reg)[] is x
+reg         is x
+
+rc          is b
+g.member    is x
+'temp[]      is x
+$clear(_client[])
+rc = $dbread(clientdb, reg, g.member)
+do while rc < 1
+   (void)$arrPush(_client[], g.member)
+   rc = $dbreadnextdst(clientdb, reg, g.member)
+enddo
+group.get[] = _client[]
+end group.get
+
+
+'-------------------------------
+'public dynamic function txp.info.rm(client, txp_data[], idx) is x
+'-------------------------------
+public dynamic function txp.toform(client, option, txp_select, txp_ui[], txp_data, idx, class) is x
+client         is x
+option         is x
+txp_select  is v
+txp_ui[,]      is x
+txp_data    is v
+idx            is b
+class          is x
+
+blob        is x
+txp[]       is x
+lvlx[]      is x
+label[]     is x
+detail[]    is x
+temp[]      is x
+
+lvl         is b
+item        is b
+data        is b
+i           is b
+
+$clear(txp[],lvl[])
+if client.find(client) = 0 then client.add(client) endif
+if _txblob[_idx] !dp then _txblob[_idx] = txp.get(client,option) endif
+if class !dp then class = "txlvl%LVL%" endif
+
+if _txblob[_idx] dp then
+   txp.toform = "<div id='" + client + "-tx'>"
+   select option
+      case "SYS"  gosub _PARSESYS
+   endselect
+   txp.toform += "</div>"
+endif
+return
+
+_PARSESYS:
+   $parsem(_txblob[_idx], 1, "~", txp[])
+   i = $maxarray(txp[])
+   $parsem(txp[i], 1, "|", txp[])
+   (void)$arrRemove(txp[1])
+   i = 0
+   do while i++ < $maxarray(txp[])
+      $parsem(txp[i], 1, "`",lvlx[i],,label[i],detail[i])
+      txp.toform += "<div id='" + client + "-tx-" + i + "' class='" + $replace("%LVL%",lvlx[i],class) + "' >"
+      lvl = $num(lvlx[i])
+      item = $find(" ", txp_ui[], 1, "P",lvl,lvl)
+      if item > 0 then
+         txp.toform += "<input type='checkbox' uhp='" + $varname(txp_select[]) + "' idx='" + idx + "' idx2='" + i + "' value='Y' />"
+      endif
+      txp.toform += label[i]
+      if item > 0 then
+         txp.toform += "<block uhp='" + $varname(txp_select) + "' value='Y' idx='" + idx + "' idx2='" + i + "' class='txlvl4'>"
+         txp.toform += $replace("/", "\",detail[i]) + "<br />"
+         do while item > 0
+            data = $maxarray(txp_ui[]) * (i - 1) + item 
+            txp.toform += $replace("/>", 
+               `"id='" + client + "tx-" + item + "-" + lvl + "' uhp='" + $varname(txp_data) + "' idx='" + idx + "' idx2='" + data + "' />"`,
+               txp_ui[item,lvl])
+            item = $find(" ", txp_ui[], ++item, "P", lvl, lvl)
+         enddo
+         txp.toform += "</block>"
+      endif
+      txp.toform += "</div>"
+   enddo
+
+goback
+
+end txp.toform
+
+
+'-------------------------------
+public dynamic function txp.tostring(client, option, txp_select[], txp_ui[], txp_data[], idx,class) is x
+client         is x
+option         is x
+txp_select[,]  is x
+txp_ui[,]      is x
+txp_data[,]      is x
+idx            is b
+class          is x
+
+blob        is x
+txp[]       is x
+lvlx[]       is x
+label[]     is x
+detail[]    is x
+temp[]      is x
+
+lvl          is b
+i           is b
+item        is b
+data        is b
+parent      is b
+plvl        is b
+ptr         is b
+pstring     is x
+
+$clear(txp[],lvlx[])
+if idx dp then _idx = idx endif
+if client.find(client) = 0 then client.add(client) endif
+if _txblob[_idx] !dp then _txblob[_idx] = txp.get(client,option) endif
+if class !dp then class = "txlvl%LVL%" endif
+
+if _txblob[_idx] dp then
+   txp.tostring = "<div id='" + client + "-tx'>"
+   select option
+      case "SYS"  gosub _PARSESYS
+   endselect
+   txp.tostring += "</div>"
+endif
+return
+
+_PARSESYS:
+   $parsem(_txblob[_idx], 1, "~", txp[])
+   i = $maxarray(txp[])
+   $parsem(txp[i], 1, "|", txp[])
+   (void)$arrRemove(txp[1])
+   i = 0
+   do while i++ < $maxarray(txp[])
+      $parsem(txp[i], 1, "`",lvlx[i],,label[i],detail[i])
+      lvl = $num(lvlx[i])
+      if txp_select[idx,i] = "Y" then
+         $clear(pstring)
+         parent = i
+         plvl = lvl
+         do while plvl > 0 and parent > 0
+            if txp_select[idx,--parent] = "Y" then
+               plvl = 0 'stop
+            else
+               if $num(lvlx[parent]) < plvl then
+                  pstring = "<div class='" + $replace("%LVL%",$castx(--plvl),class) + "' >" + label[parent] + "</div>" + pstring
+               endif
+            endif
+         enddo
+         txp.tostring += pstring + "<div class='" + $replace("%LVL%",lvlx[i],class) + "' >" + label[i] + ": " + detail[i] + "<div class='txlvl4'>"
+         item = 0
+         do while item++ < $maxarray(txp_ui[])
+            data = $maxarray(txp_ui[]) * (i - 1) + item
+            if txp_ui[item,lvl] dp then
+               ptr = $find("<", txp_ui[item,lvl])
+               txp.tostring += $seg(txp_ui[item,lvl], 1, --ptr) + "  " + txp_data[idx,data] + "<br />"
+            endif
+         enddo
+         txp.tostring += "</div></div>"
+      endif
+   enddo
+goback
+
+end txp.tostring
+
+
+'-------------------------------
+public function txp.get(client,option) is x
+
+client         is x
+option         is x
+
+key1        is x
+key2        is x
+'blob        is x
+
+if option !dp then option = "SYS" endif
+select option
+   case "SYS"  key1 = "$TX"
+               key2 = "AC"
+               if $dbxread(clientdb, client, key1, key2, txp.get) > 0 then
+                  $clear(txp.get)
+               endif
+endselect
+
+'txp.get = blob
+end txp.get
+
+'-------------------------------
+' include tools below this point
+'-------------------------------
+%include inc_GetParm
+%include inc_GetOption
