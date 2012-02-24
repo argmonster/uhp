@@ -1,6 +1,7 @@
 'uhp include file
-dynamic function uhp_Option(uhp.path) is b
+dynamic function uhp_Option(uhp.path, uhp.parm) is b
 uhp.path       is x
+uhp.parm       is x
 openptr        is b
 tagname        is x
 tagvalue       is x
@@ -20,17 +21,25 @@ xidx2          is x
 if $tempfile(uhp.temp) > 0 then
    uhp_option = 11
 endif
-perlcmd = "cat $1 | perl -e 'undef $/; while(<>){m/<parm>(.*)<\/parm/s && print $1.chr(10)};' | perl -ne 'm/<(.*)>(.*)<\/\1/ && print $1.chr(124).$2.chr(10)'"
-if $putfile(perlcmd, uhp.temp) > 0 then
-   uhp_option = 22
-endif
-unixcmd = "chmod +x " + uhp.temp
-if $unix(unixcmd) > 0 then
-   uhp_option = 44
-endif
-unixcmd = uhp.temp + " " + uhp.path
-if $unix(unixcmd, opts[]) > 0 then
-   uhp_option = 33
+if uhp.parm dp then
+    perlcmd = "perl -ne 'm/<" + uhp.parm + ">(.*)<\/" + uhp.parm + "/i && print $1;' " + uhp.path
+    if $unix(perlcmd,opts[]) > 0 then
+      uhp_option = 55
+   endif
+   'perlcmd = "cat $1 | perl -e 'undef $/; while(<>){m/<" + uhp.parm + ">(.*)<\/" + uhp.parm + "/i && print " + uhp.parm + ".chr(124).$1.chr(10)};'"
+else
+   perlcmd = "cat $1 | perl -e 'undef $/; while(<>){m/<parm>(.*)<\/parm/s && print $1.chr(10)};' | perl -ne 'm/<(.*)>(.*)<\/\1/ && print $1.chr(124).$2.chr(10)'"
+   if $putfile(perlcmd, uhp.temp) > 0 then
+      uhp_option = 22
+   endif
+   unixcmd = "chmod +x " + uhp.temp
+   if $unix(unixcmd) > 0 then
+      uhp_option = 44
+   endif
+   unixcmd = uhp.temp + " " + uhp.path
+   if $unix(unixcmd, opts[]) > 0 then
+      uhp_option = 33
+   endif
 endif
 openptr = 0
 do while openptr++ < $maxarray(opts[])
@@ -61,3 +70,6 @@ do while openptr++ < $maxarray(opts[])
    (void)$copyvar(copyptr, varptr)
 enddo   
 end uhp_option
+
+
+' perl -e 'undef $/; while(<>){m/<parm>(.*)<\/parm/s && m/<(.*)>(.*)<\/\1/ && print $1.chr(124).$2.chr(10)'
