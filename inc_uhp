@@ -4,7 +4,7 @@
 '-----------------------------------------------------------------------------------------
 'Fake Version String:
 '
-' version 2.1 01/11/2012 Tim Markello
+' version 3.0 04/25/2012 Tim Markello
 ' Copyright 9/2/2011 Tim Markello timmarkello@gmail.com
 '
 '-----------------------------------------------------------------------------------------
@@ -63,6 +63,12 @@
 ' ~ fixed _MAPOUT Routine to allow NULL values to be mapped back to mainscript
 ' ~ fixed issue of finding end of tag with tags that contain '/' in attribute values
 ' ~ changed some $num() to $casti()
+'*version 3.0*
+' Tim 4/25/12 3.0
+' ~ re work of parser to use $parse instead of $find
+' ~ re work of literal tag edits to accept any system / uscript edit
+' + added dot notation functionality for 1 and 2 diminsion arrays
+' - variable cleanup
 '-----------------------------------------------------------------------------------------
 'General Use Info:
 '
@@ -231,28 +237,37 @@ idxptr         is b     'mapping x index
 idx2ptr        is b     'mapping y index
 formName       is x
  'template parsing variables
+tagStart       is x
 openTag        is x
-openptr        is b
-closeptr       is b
-taglen         is b
+currentptr     is b
+linelen        is b
 tagtype        is x
-tagatts        is x
 tagend         is x     'character that ends the current tag: indicates if the tag is standalone (... />) or contains children (... >)
 notag          is x     'not a uhp tag - sent to browser 'as is' from template
 attName[]      is x
 attValue[]     is x
+attWrap        is x
+wrap           is x
+delim          is x
+delimend       is x
 inputMap       is x     'value from tag attribute 'uhp' : name of variable to map to in main script
 value[]        is x
 label[]        is x
 pbutton        is x
+dotnote        is x
  'uhp recursion variables
 parenttag[]    is x
 parentAtt[]    is x
+parentAttNam[,]   is x
+parentAttVal[,]   is x
 parentptr      is b
  'dst processing variables
 dstinfo[]      is x
-fakerecord     is h
-fakedst        is v
+dstlist        is dstlist
+dstval[]       is x
+dstname[]      is x
+'fakerecord     is h
+'fakedst        is v
  'for dynamic processing
 saveLine[]     is x
 saveOpen[]     is b
@@ -286,7 +301,7 @@ $clear(uhp.handle, uhp.line, varptr, control[], temp[], string, parenttag[],pare
 loopcount = $loopcount
 looplimit = $looplimit
 $loopcount = 0
-$looplimit = 9999 'change to 0?
+$looplimit = 99999 'change to 0?
 contPtr = 0
 contTot = 0
 'process the argument
@@ -307,8 +322,10 @@ if $openfile(uhp.handle, uhp.path, "I") > 0 then
    uhp = 1
    return
 endif
+tagStart = "<"
 do while $readfile(uhp.handle, uhp.Line) = 0
-   closeptr = 1
+   currentptr = 1
+   lineLen = $len(uhp.line) + 1
    gosub _TAGFIND
 enddo
 (void)$closefile(uhp.handle)
@@ -324,69 +341,69 @@ return
 '-------------------------------------
 ' Subroutines after this point
 '-------------------------------------
+' get the next line
+'-------------------------------------
+_NEXTLINE:
+   if saveLine[] !dp then
+      currentptr = 1
+      if $readfile(uhp.handle, uhp.line) > 0 then
+         uhp = 2
+         (void)$closefile(uhp.handle)  'don't leave a mess
+         return
+      endif
+      lineLen = $len(uhp.line) + 1
+   endif
+goback 
+'-------------------------------------
 ' Find the next uhp tag to process
 '-------------------------------------
 _TAGFIND:
    if uhp.line dp then
-      do while closeptr < $len(uhp.line)
-         if closeptr = 0 then closeptr = 1 endif
-         openptr = $find("<", uhp.line, closeptr, "F")
-         do while openptr = 0
-            openptr = $len(uhp.line)
-            if openptr = 1 then
-               openptr += 2
-            endif
-            if openptr > closeptr then
-               i = openptr - closeptr + 1
-               notag = $seg(uhp.line, closeptr, i)
-               if skip != "Y" then
-                  notag = $replace(x"0d", "<br />", notag)
-                  $ctag(notag)
-               endif
-            endif
-            if saveLine[] !dp then
-               closeptr = 1
-               if $readfile(uhp.handle, uhp.line) > 0 then
-                  uhp = 2
-                  (void)$closefile(uhp.handle)  'don't leave a mess
-                  return
-               endif
-               openptr = $find("<", uhp.line, closeptr, "F")
-            else
-               closeptr = openptr
-            endif
-         enddo
-         if openptr > closeptr then
-            i = openptr - closeptr 
-            notag = $seg(uhp.line, closeptr, i)
-            if skip != "Y" then
-               notag = $replace(x"0d", "<br />", notag)
-               $ctag(notag)
-            endif
-         endif
-         $clear(opentag)
-         do while openptr < $len(uhp.line) 
-            closeptr = $find(">", uhp.line, openptr, "F")
-            do while closeptr = 0 and saveLine[] !dp
-               openTag += $seg(uhp.line, openptr)
-               openptr = 1
-               if $readfile(uhp.handle, uhp.Line) > 0 then
-                  uhp = 2
-                  (void)$closefile(uhp.handle)  'don't leave a mess
-                  return
-               endif
-               closePtr = $find(">", uhp.line, openptr, "F")
+      do while currentptr < lineLen
+         if currentptr = 0 then currentptr = 1 endif
+         notag = $parse(uhp.line, currentptr, tagStart, delimend)
+         if notag dp and skip != "Y" then $ctag($replace(x"0d", "<br />", notag)) endif
+         if delimend = "<" then
+            $clear(tagtype, attName[], attValue[])
+            delim = " =>"
+            tagend = ">"
+            opentag = "<"
+            string = ""
+            delimend = ""
+            tempnum = 0
+            i = 0
+            do until delimEnd = ">"
+               string += $parse(uhp.line, currentptr, delim, delimEnd)
+               opentag += string + delimend
+               select delimEnd
+                  case " "    if currentptr < lineLen then
+                                 tagtype = $trim($uc(string))
+                                 delim = $replace(" ", "", delim)
+                                 if $find("/", string,1,"F") > 0 then tagend = "/" endif
+                                 $clear(string)
+                              else
+                                 gosub _NEXTLINE
+                              endif
+                              opentag += " "
+                  case "="    attName[++i] = $trim($uc(string))
+                              $clear(string)
+                              delim = wrap
+                  case "'"
+                    or x"22"  if tempnum > 0 then
+                                 attValue[i] = string
+                                 tempnum = 0
+                                 delim = "=>"
+                              else
+                                 tempnum++
+                                 delim = delimEnd
+                              endif
+                              $clear(string)
+                  case ">"    if tagtype !dp then tagtype = $trim($uc(string)) endif
+                              if $find("/", string,1,"F") > 0 then tagend = "/" endif
+               endselect
             enddo
-            taglen = closeptr - openptr + 1
-            openTag += $seg(uhp.line, openptr, taglen)
             gosub _TAGPROC
-            if closeptr >= $len(uhp.line) then 
-               'do nothing
-            else
-               closeptr++
-            endif
-            openptr = $len(uhp.line)
-         enddo
+         endif
       enddo
    endif
 goback
@@ -397,13 +414,6 @@ goback
 '-------------------------------------
 _TAGPROC:
    i = 2
-   tagType = $parse(opentag, i, " >")
-   tagAtts = $parse(opentag, i, ">")
-   if $find("/", opentag, 1, "F") > 0 then
-      tagend = "/"
-   else
-      tagend = ">"
-   endif
    select $uc(tagtype)
       case "HTML"
         or "/HTML"      'do nothing
@@ -435,24 +445,23 @@ _TAGPROC:
    'go find the child tags if there are some
    if tagEnd = ">" then
       parentTag[++parentptr] = tagtype
-      parentAtt[parentptr] = tagAtts
+      parentAttNam[parentptr] = attName[]
+      parentAttVal[parentptr] = attValue[]
       string = "/" + parentTag[parentptr]
       do while tagtype != string
-         closePtr++
-         if closeptr > $len(uhp.line) then
-            if $readfile(uhp.handle, uhp.Line) > 0 then
-               uhp = 3
-               return
-            endif
-            closeptr = 1
+         if currentptr < lineLen then
+            gosub _TAGFIND
+         else
+            gosub _NEXTLINE
          endif
-         gosub _TAGFIND
          string = "/" + parentTag[parentptr]
       enddo
       tagtype = parentTag[parentptr]
-      tagAtts = parentAtt[parentptr]
+      attName[] = parentAttName[parentptr]
+      attValue[] = parentAttVal[parentptr]
       (void)$arrRemove(parentTag[parentptr])
-      (void)$arrRemove(parentAtt[parentptr])
+      (void)$arrRemove(parentAttVal[parentptr])
+      (void)$arrRemove(parentAttName[parentptr])
       --parentptr
    endif
 
@@ -462,11 +471,10 @@ goback
 ' the uhp input tag
 '-------------------------------------
 _INPUT:
-   $clear(temp[])
-   getAtts(tagatts, attName[], attValue[])
+   $clear(temp[], dotnote)
    gosub _MAPIN
-   temp[1] = getAttVal("TYPE", attName[], attValue[], varlist[])
-   string = getAttVal("ID", attName[], attValue[], varlist[])
+   temp[1] = getAttVal("TYPE", attName[], attValue[], varlist[], dotnote)
+   string = getAttVal("ID", attName[], attValue[], varlist[], dotnote)
    if string dp then
       (void)$assignobj(string)
    endif
@@ -474,33 +482,33 @@ _INPUT:
       case "FILE"    'insert the rmi junk?
                      string = "<input type='file' id='" + string + "' ></input>"
                      $ctag(string)
-      case "TEXT"    temp[2] = getAttVal("LABEL", attName[], attValue[], varlist[])
+      case "TEXT"    temp[2] = getAttVal("LABEL", attName[], attValue[], varlist[], dotnote)
                      if temp[2] dp then
                         $text(temp[2])
                      endif
-                     temp[3] = getAttVal("EDIT", attName[], attValue[], varlist[])
-                     temp[4] = getAttVal("MAX-CHARS", attName[], attValue[], varlist[])
+                     temp[3] = getAttVal("EDIT", attName[], attValue[], varlist[], dotnote)
+                     temp[4] = getAttVal("MAX-CHARS", attName[], attValue[], varlist[], dotnote)
                      if temp[4] !dp then 
                         temp[4] = "9999"
                      endif
-                     temp[5] = getAttVal("WIDTH", attName[], attValue[], varlist[])
-                     temp[6] = getAttVal("REQ", attName[], attValue[], varlist[])
+                     temp[5] = getAttVal("WIDTH", attName[], attValue[], varlist[], dotnote)
+                     temp[6] = getAttVal("REQ", attName[], attValue[], varlist[], dotnote)
                      $textbox(control[contptr], temp[3],$casti(temp[4]),$casti(temp[5]),temp[6],inputmap)
-      case "SUBMIT"  temp[2] = getAttVal("VALUE", attName[], attValue[], varlist[])
-                     temp[3] = getAttVal("CLASSSEL", attName[], attValue[], varlist[])
-                     temp[4] = getAttVal("CLASSNOTSEL", attName[], attValue[], varlist[])
+      case "SUBMIT"  temp[2] = getAttVal("VALUE", attName[], attValue[], varlist[], dotnote)
+                     temp[3] = getAttVal("CLASSSEL", attName[], attValue[], varlist[], dotnote)
+                     temp[4] = getAttVal("CLASSNOTSEL", attName[], attValue[], varlist[], dotnote)
                      if (temp[3] dp and temp[4] dp) then 'or temp[4] dp then
                         $bstyle(temp[3], temp[4])
                      endif
                      $submit(control[contptr], temp[2])
       case "RADIO"   
-        or "CHECKBOX"   string = getAttVal("DCT", attName[], attValue[], varlist[])
+        or "CHECKBOX"   string = getAttVal("DCT", attName[], attValue[], varlist[], dotnote)
                         if string dp then
                            $clear(value[], label[])
                            tempNum = $num(string)
                            (void)$dctload(tempNum, value[], label[])
                            'do we want a specific item?
-                           string = getAttVal("CODE", attName[], attValue[], varlist[])
+                           string = getAttVal("CODE", attName[], attValue[], varlist[], dotnote)
                            if string dp then
                               i = $find(string, value[], 1, "F")
                               tempNum = i + 1
@@ -513,8 +521,8 @@ _INPUT:
                            endif
                         else
                            'defined on the template
-                           value[1] = getAttVal("VALUE", attName[], attValue[], varlist[])
-                           label[1] = getAttVal("LABEL", attName[], attValue[], varlist[])
+                           value[1] = getAttVal("VALUE", attName[], attValue[], varlist[], dotnote)
+                           label[1] = getAttVal("LABEL", attName[], attValue[], varlist[], dotnote)
                            i = 1
                            tempNum = 2
                         endif
@@ -535,36 +543,38 @@ goback
 ' the uhp select/drop down list tag
 '-------------------------------------
 _DROPBOX:
-   getAtts(tagatts, attName[], attValue[])
-   $clear(value[],label[])
+   $clear(value[],label[],dotnote)
    gosub _MAPIN
-   string = getAttVal("DCT", attName[], attValue[], varlist[])
+   string = getAttVal("DCT", attName[], attValue[], varlist[], dotnote)
    if string dp then
       tempnum = $num(string)
       (void)$dctload(tempNum, value[], label[])
    endif
-   string = getAttVal("LISTVAL", attName[], attValue[], varlist[])
+   string = getAttVal("LISTVAL", attName[], attValue[], varlist[], dotnote)
    if string dp then
       tempnum = findVar(string, varlist[])
       copyptr = $varptr(value[])
       (void)$copyvar(tempnum, copyptr)
    endif
-   string = getAttVal("LISTLABEL", attName[], attValue[], varlist[])
+   string = getAttVal("LISTLABEL", attName[], attValue[], varlist[], dotnote)
    if string dp then
       tempnum = findVar(string, varlist[])
       copyptr = $varptr(label[])
       (void)$copyvar(tempnum,copyptr)
    endif
-   string = getAttVal("ADDBLANK", attName[], attValue[], varlist[])
+   string = getAttVal("ADDOTHER", attName[], attValue[], varlist[], dotnote)
+   if $uc(string) = "Y" then string = $maxarray(Value[]) + 1 endif
+   i = $casti(string)
+   if i > 0 then
+      (void)$arrInsert(value[i], "OTHER")
+      (void)$arrInsert(Label[i], "Other")
+   endif
+   string = getAttVal("ADDBLANK", attName[], attValue[], varlist[], dotnote)
    if string = "Y" then
       (void)$arrInsert(value[1],"")
       (void)$arrInsert(label[1],"")
    endif
-   if $uc(getAttVal("ADDOTHER", attName[], attValue[], varlist[])) = "Y" then
-      (void)$arrPush(value[1], "OTHER")
-      (void)$arrPush(label[1], "Other")
-   endif
-   string = getAttVal("ID", attName[], attValue[], varlist[])
+   string = getAttVal("ID", attName[], attValue[], varlist[], dotnote)
    if string dp then
       (void)$assignobj(string)
    endif
@@ -573,11 +583,11 @@ _DROPBOX:
       string = $uc(inputMap) + "-" + $uc(value[i]) + "-" + idxptr + "-" + idx2ptr
       $dropbox(control[contptr], label[i], value[i],,,string, string)
    enddo
-   temp[1] = getAttVal("ADDOTHERTEXT", attName[], attValue[], varlist[])
+   temp[1] = getAttVal("ADDOTHERTEXT", attName[], attValue[], varlist[], dotnote)
    if temp[1] dp then
-      temp[2] = getattval("ADDOTHERTEXTIDX", attName[], attValue[], varlist[])
-      temp[3] = getattval("ADDOTHERTEXTIDX2", attName[], attValue[], varlist[])
-      temp[4] = getattval("ADDOTHERTEXTEDIT", attName[], attValue[], varlist[])
+      temp[2] = getattval("ADDOTHERTEXTIDX", attName[], attValue[], varlist[], dotnote)
+      temp[3] = getattval("ADDOTHERTEXTIDX2", attName[], attValue[], varlist[], dotnote)
+      temp[4] = getattval("ADDOTHERTEXTEDIT", attName[], attValue[], varlist[], dotnote)
       string = "<block uhp='" + inputmap + "' value='OTHER' idx='" + idxptr + "' idx2='" + idx2ptr + "'>"
              + "<input type='text' uhp='" + temp[1] + "' idx='" + temp[2] + "' idx2='" + temp[3] + "' edit='"
              + temp[4] + "' /></block>"
@@ -590,14 +600,11 @@ goback
 '-------------------------------------
 _DROPBOXOPT:
    i++
-   $clear(temp[])
-   string = parentAtt[parentptr]
-   getAtts(string, attName[], attValue[])
-   getAtts(tagatts, label[], Value[])
-   (void)$arrayMerge(attName[], label[])
-   (void)$arrayMerge(attValue[], value[])
-   temp[1] = getAttVal("VALUE", attName[], attValue[], varlist[])
-   temp[2] = getAttVal("LABEL", attName[], attValue[], varlist[])
+   $clear(temp[],dotnote)
+   (void)$arrInsert(attName[1], parentAttNam[parentptr])
+   (void)$arrInsert(attValue[1], parentAttval[parentptr])
+   temp[1] = getAttVal("VALUE", attName[], attValue[], varlist[], dotnote)
+   temp[2] = getAttVal("LABEL", attName[], attValue[], varlist[], dotnote)
    string = $uc(inputMap) + "-" + $uc(temp[1]) + "-" + i
    $dropbox(control[contptr], temp[2], temp[1],,,string,string)
 goback
@@ -606,14 +613,13 @@ goback
 ' the uhp hidden block open tag
 '-------------------------------------
 _BLOCK:
-   $clear(temp[],tempnum)
-   getAtts(tagatts, attName[], attValue[])
-   temp[1] = getAttVal("UHP", attName[], attValue[], varlist[])
-   temp[2] = getAttVal("VALUE", attName[], attValue[], varlist[])
-   temp[3] = getAttval("IDX", attName[], attValue[], varlist[])
+   $clear(temp[],tempnum, dotnote)
+   temp[1] = getAttVal("UHP", attName[], attValue[], varlist[], dotnote)
+   temp[2] = getAttVal("VALUE", attName[], attValue[], varlist[], dotnote)
+   temp[3] = getAttval("IDX", attName[], attValue[], varlist[], dotnote)
    idxptr = $num(temp[3])
-   temp[4] = getAttval("IDX2", attName[], attValue[], varlist[])
-   temp[9] = getAttval("DISPTYPE", attName[], attValue[], varlist[])
+   temp[4] = getAttval("IDX2", attName[], attValue[], varlist[], dotnote)
+   temp[9] = getAttval("DISPTYPE", attName[], attValue[], varlist[], dotnote)
    if temp[9] !dp then temp[9] = "block" endif
    idx2ptr = $num(temp[4])
    varptr = findvar(temp[1], varList[])
@@ -629,7 +635,7 @@ _BLOCK:
    else
       temp[6] = "none"
    endif
-   temp[8] = getAttVal("CLASS",attName[],attValue[],varlist[])
+   temp[8] = getAttVal("CLASS",attName[],attValue[],varlist[], dotnote)
    string = temp[1] + "-" + temp[2] + "-" + temp[3] + "-" + temp[4]
    string = "<span id='scrBlock" + $uc(string) + $uc(string) + "' class='" + temp[8] + "' style='display:" + temp[6] + "'>"
    $ctag(string)
@@ -647,15 +653,13 @@ goback
 ' the uhp body tag
 '-------------------------------------
 _BODYTAG:
-   'parse the tagatts
-   $clear(temp[])
-   getAtts(tagatts, attName[], attValue[])
-   temp[1] = getAttVal("SUBMITOPT", attName[], attValue[], varlist[])
-   temp[2] = getAttVal("SUBMITLABEL", attName[], attValue[], varlist[])
-   temp[3] = getAttVal("CANCELOPT", attName[], attValue[], varlist[])
-   temp[4] = getAttVal("CANCELLABEL", attName[], attValue[], varlist[])
-   temp[5] = getAttVal("CLASS", attName[], attValue[], varlist[])
-   formname = getAttVal("NAME", attName[], attValue[], varlist[])
+   $clear(temp[], dotnote)
+   temp[1] = getAttVal("SUBMITOPT", attName[], attValue[], varlist[], dotnote)
+   temp[2] = getAttVal("SUBMITLABEL", attName[], attValue[], varlist[], dotnote)
+   temp[3] = getAttVal("CANCELOPT", attName[], attValue[], varlist[], dotnote)
+   temp[4] = getAttVal("CANCELLABEL", attName[], attValue[], varlist[], dotnote)
+   temp[5] = getAttVal("CLASS", attName[], attValue[], varlist[], dotnote)
+   formname = getAttVal("NAME", attName[], attValue[], varlist[], dotnote)
    if formname !dp then
       formname = $oper + $timenow
    endif
@@ -684,15 +688,14 @@ goback
 ' the uhp textblock tag
 '-------------------------------------
 _TEXTBLOCK:
-   $clear(temp[])
-   getAtts(tagatts, attName[], attValue[])
+   $clear(temp[], dotnote)
    gosub _MAPIN
-   temp[1] = getAttVal("LABEL", attName[], attValue[], varlist[])
-   temp[2] = getAttVal("COL", attName[], attValue[], varlist[])
-   temp[3] = getAttVal("ROW", attName[], attValue[], varlist[])
-   temp[4] = getAttVal("LIMIT", attName[], attValue[], varlist[])
-   temp[5] = getAttVal("CLASS", attName[], attValue[], varlist[])
-   temp[6] = getAttVal("ID", attName[], attValue[], varlist[])
+   temp[1] = getAttVal("LABEL", attName[], attValue[], varlist[], dotnote)
+   temp[2] = getAttVal("COL", attName[], attValue[], varlist[], dotnote)
+   temp[3] = getAttVal("ROW", attName[], attValue[], varlist[], dotnote)
+   temp[4] = getAttVal("LIMIT", attName[], attValue[], varlist[], dotnote)
+   temp[5] = getAttVal("CLASS", attName[], attValue[], varlist[], dotnote)
+   temp[6] = getAttVal("ID", attName[], attValue[], varlist[], dotnote)
    if temp[5] dp then 
       temp[5] = "class='" + temp[5] + "'" 
    endif
@@ -707,16 +710,15 @@ goback
 ' the uhp literal tag
 '-------------------------------------
 _LITERAL:
-   $clear(temp[], value[], saveVal[],main[])
-   getAtts(tagatts, attName[], attValue[])
-   temp[3] = getAttVal("VALUE", attName[], attValue[], varlist[])[]
-   temp[1] = getAttVal("EDITTYPE", attName[], attValue[], varlist[])
-   temp[2] = getAttVal("EDITNUM", attName[], attValue[], varlist[])
-   temp[4] = getAttVal("CLASS", attName[], attValue[], varlist[])
-   temp[5] = getAttVal("OPTION", attName[], attValue[], varlist[])
-   temp[6] = getAttVal("IDX", attName[], attValue[], varlist[])
+   $clear(temp[], value[], saveVal[],main[], dotnote)
+   temp[3] = getAttVal("VALUE", attName[], attValue[], varlist[], dotnote)[]
+   temp[1] =  getAttVal("EDITTYPE", attName[], attValue[], varlist[], dotnote)
+   temp[2] = getAttVal("EDITNUM", attName[], attValue[], varlist[], dotnote)
+   temp[4] = getAttVal("CLASS", attName[], attValue[], varlist[], dotnote)
+   temp[5] = getAttVal("OPTION", attName[], attValue[], varlist[], dotnote)
+   temp[6] = getAttVal("IDX", attName[], attValue[], varlist[], dotnote)
    idxptr = $num(temp[6])
-   temp[7] = getAttVal("IDX2", attName[], attValue[], varlist[])
+   temp[7] = getAttVal("IDX2", attName[], attValue[], varlist[], dotnote)
    idx2ptr = $num(temp[7])
    varptr = findVar(temp[3], varlist[])
    if varptr > 0 then
@@ -734,15 +736,18 @@ _LITERAL:
    else
       saveVal[1] = temp[3]
    endif
+   $parsem($uc(temp[1]),1,"`",temp[11],,temp[12],temp[13])
+   if temp[12] !dp then temp[12] = $uc(temp[2]) endif
+   if $uc(temp[1]) = "SAC" then temp[1] = "SAM" endif 'make original implimentation compatable with system edits.
+   if $uc(temp[1]) = "DB" then temp[1] = "DB``" + temp[2] endif
    i = 0
    do while i++ < $maxarray(saveVal[])
       string = saveVal[i]
-      select $uc(temp[1])
-         case "DB"      (void)$dbalpha($num(temp[2]), string, string)
+      select $uc(temp[11])
          case "DCT"     tempnum = 1
                         temp[8] = $parse(string, tempnum, "|")
                         do while tempnum < $len(string) or temp[8] dp
-                           temp[9] = $dct($casti(temp[2]), temp[8], temp[5])
+                           temp[9] = $dct($casti(temp[12]), temp[8], temp[5])
                            if temp[8] dp and temp[10] dp then
                               temp[10] += ", "
                            endif
@@ -754,19 +759,27 @@ _LITERAL:
                            temp[8] = $parse(string, tempnum, "|")
                         enddo
                         string = temp[10]
-         case "SAC"     string = $sam(string)
-         case "RU"      string = $ru(string)
-         case "DST"     temp[2] = $uc(temp[2])
-                        (void)$dstinfo(temp[2], dstinfo[])
-                        $setvarname(fakedst, temp[2])
-                        $setvartype(fakedst, dstinfo[5])
-                        if dstinfo[16] dp then     'this is a record dst
-                           $setvarname(fakerecord, dstinfo[16])
-                           (void)$dbread($num(dstinfo[4]), string, fakerecord, fakedst)
-                        else
-                           (void)$dbread($num(dstinfo[4]), string, fakedst)
+         case "DST"     dstname[2] = temp[12]
+                        (void)$dstinfo(temp[12], dstinfo[])
+                        if dstinfo[16] dp then dstname[1] = dstinfo[16] endif
+                        if temp[13] !dp then temp[13] = 1 endif
+                        tempnum = 1 'set the layercounter
+                        (void)$dstlist(dstlist, $num(dstinfo[4]), dstname[], dstval[])
+                        if $dbread($num(dstinfo[4]), string, dstlist) > 1 then
+                           temp[13] = tempnum
                         endif
-                        string = fakedst
+                        do until tempnum++ = $num(temp[13])
+                           if temp[13] = "ALL" then
+                              if temp[14] dp then temp[14] += ", " endif
+                              temp[14] += dstval[2]
+                           endif
+                           if $dbreadnextdst($num(dstinfo[4]), string, dstlist) > 1 then
+                              temp[13] = tempnum
+                           endif
+                        enddo
+                        if temp[14] dp and dstval[2] dp then temp[14] += ", " endif
+                        string = temp[14] + dstval[2]
+         case other     if temp[11] dp then (void)$getEditMsg(string, temp[1], string) endif
       endselect
       'let's process the new stuff!!
       if string dp then
@@ -806,21 +819,20 @@ goback
 ' the Snapshot tag
 '-------------------------------------
 _SNAPSHOT:
-   $clear(temp[])
-   getAtts(tagatts, attName[], attValue[])
-   inputMap = getAttVal("UHP", attName[], attValue[], varlist[])
-   temp[1] = getAttVal("TITLE", attName[], attValue[], varlist[])
-   temp[2] = getAttVal("OPTION", attName[], attValue[], varlist[])
-   temp[3] = getAttVal("PARMFILE", attName[], attValue[], varlist[])
-   temp[4] = getAttVal("FORMID", attName[], attValue[], varlist[])
-   temp[5] = getAttVal("REGID", attName[], attValue[], varlist[])
+   $clear(temp[], dotnote)
+   inputMap = getAttVal("UHP", attName[], attValue[], varlist[], dotnote)
+   temp[1] = getAttVal("TITLE", attName[], attValue[], varlist[], dotnote)
+   temp[2] = getAttVal("OPTION", attName[], attValue[], varlist[], dotnote)
+   temp[3] = getAttVal("PARMFILE", attName[], attValue[], varlist[], dotnote)
+   temp[4] = getAttVal("FORMID", attName[], attValue[], varlist[], dotnote)
+   temp[5] = getAttVal("REGID", attName[], attValue[], varlist[], dotnote)
    varptr = findVar(temp[5], varlist[])
    if varptr > 0 then
       copyptr = $varptr(string)
       (void)$copyvar(varptr, copyptr)
       temp[5] = string
    endif
-   temp[6] = getAttVal("DBNUM", attName[], attValue[], varlist[])
+   temp[6] = getAttVal("DBNUM", attName[], attValue[], varlist[], dotnote)
    if temp[4] dp and temp[6] dp then
       snap_handle:sn_CreateReport(temp[1], temp[2], temp[3], temp[4], temp[5], $num(temp[6]),,,,,$ScriptID) 
    else 
@@ -832,11 +844,11 @@ goback
 ' call a library's 'render' function
 '-------------------------------------
 _LIBRARY:
-   getAtts(tagatts, attName[], attValue[])
+   $clear(dotnote)
    gosub _MAPIN
    i = 0
    do while i++ < $maxarray(attName[])
-      attValue[i] = getAttVal(attName[i], attname[], attValue[], varlist[])
+      attValue[i] = getAttVal(attName[i], attname[], attValue[], varlist[], dotnote)
       if attName[i] = "NAME" then
          string = attValue[i]
       endif
@@ -884,14 +896,15 @@ goback
 ' display the $editmsg for a vairable
 '-------------------------------------
 _VAREDIT:
-   inputMap = getAttVal("UHP", attName[], attValue[], varlist[])
-   temp[1] = getAttVal("IDX", attName[], attValue[], varlist[])
+   $clear(dotnote)
+   inputMap = getAttVal("UHP", attName[], attValue[], varlist[], dotnote)
+   temp[1] = getAttVal("IDX", attName[], attValue[], varlist[], dotnote)
    idxptr = $num(temp[1])
-   temp[2] = getAttVal("IDX2", attName[], attValue[], varlist[])
+   temp[2] = getAttVal("IDX2", attName[], attValue[], varlist[], dotnote)
    idx2ptr = $num(temp[2])
    varptr = findVar(inputMap, varlist[])
    if varptr > 0 then   'this is a variable from the main script
-      string = "|" + $castx(idxptr) + "|" + $castx(idx2ptr)
+      string = "|" + $castx(idxptr) + "|" + $castx(idx2ptr) + "|"
       i = $find(string, map[varptr], 1, "P")
       if i > 0 then
          tempnum = $num($parse(map[varptr,i], 1, "|"))
@@ -905,19 +918,18 @@ goback
 '-------------------------------------
 _REPROC:
    saveLine[++saveptr] = uhp.line
-   saveOpen[saveptr] = openPtr
-   saveClose[saveptr] = closePtr
+   saveOpen[saveptr] = currentptr
    saveTag[saveptr] = tagtype
    saveT[saveptr] = saveVal[]
    saveA[saveptr] = temp[]
    saveCnt[saveptr] = i
+   currentptr = 1
    uhp.line = string
-   openPtr = 0
-   closePtr = 0
+   linelen = $len(uhp.line) + 1
    gosub _TAGFIND
    uhp.line = saveLine[saveptr]
-   openPtr = saveOpen[saveptr]
-   closePtr = saveClose[saveptr]
+   linelen = $len(uhp.line) + 1
+   currentptr = saveOpen[saveptr]
    tagType = savetag[saveptr]
    saveVal[] = savet[saveptr]
    temp[] = saveA[saveptr]
@@ -934,10 +946,10 @@ goback
 ' map variables from mainscript to uhp controls
 '-------------------------------------
 _MAPIN:
-   inputMap = getAttVal("UHP", attName[], attValue[], varlist[])
-   temp[1] = getAttVal("IDX", attName[], attValue[], varlist[])
+   inputMap = getAttVal("UHP", attName[], attValue[], varlist[], dotnote)
+   temp[1] = getAttVal("IDX", attName[], attValue[], varlist[], dotnote)
    idxptr = $num(temp[1])
-   temp[2] = getAttVal("IDX2", attName[], attValue[], varlist[])
+   temp[2] = getAttVal("IDX2", attName[], attValue[], varlist[], dotnote)
    idx2ptr = $num(temp[2])
    varptr = findVar(inputMap, varlist[])
    if varptr > 0 then   'this is a variable from the main script
@@ -954,7 +966,7 @@ _MAPIN:
       else
          temp[] = main[1,idxptr]
       endif
-      string = "|" + $castx(idxptr) + "|" + $castx(idx2ptr)
+      string = "|" + $castx(idxptr) + "|" + $castx(idx2ptr) + "|"
       i = $find(string, map[varptr], 1, "P")
       if i > 0 then
          contptr = $num($parse(map[varptr,i], 1, "|"))
@@ -987,7 +999,11 @@ _MAPOUT:
          $clear(temp[],string) ',main[])
          temp[] = control[contptr]
          'if temp[] dp then
+            if temp[] !dp or temp[] = "" then 
+               $clear(temp[]) $clear(string) 
+            else
                (void)$putds(temp[],string, "|")
+            endif
             if idx2ptr > 0 then
                if idxptr > 0 then
                   main[idxptr,idx2ptr] = string
@@ -1047,7 +1063,7 @@ end getAtts
 ' according to <varname>.<attname> variable
 ' naming convention.
 '-------------------------------------
-dynamic function getAttVal(att, name[], value[], varlist[],j)[] is x
+dynamic function getAttVal(att, name[], value[], varlist[], uhp)[] is x
 att      is x
 name[]   is x
 value[]  is x
@@ -1057,22 +1073,36 @@ uhp      is x
 temp[,]   is x
 i        is b
 j        is b
+k        is b
 copyptr  is b
-$clear(uhp, temp[], i , j, copyptr, getAttVal[])
-$allowupdate(varlist[],j)
+'$clear(uhp, temp[], i , j, copyptr, getAttVal[])
+$clear(temp[], i, copyptr)
+$allowupdate(varlist[],uhp)
 copyptr = $varptr(temp[])
 i = $find(att, name[], 1, "F")
 if i > 0 then
    getAttVal[1] = value[i]
 endif
-i = $find("UHP", name[], 1, "F")
-if i > 0 then
-   do while i > 0
-      uhp += value[i] + "."
-      i = $find("UHP", name[], ++i, "F")
-   enddo
-   uhp += att
-   i = findVar(uhp, varlist[])
+if uhp !dp then
+   i = $find("UHP", name[], 1, "F")
+   j = $find("IDX", name[], 1, "F")
+   k = $find("IDX2", name[], 1, "F")
+   if i > 0 then
+      do while i > 0
+         uhp += value[i] + "."
+         if j > 0 then uhp += value[j] + "." endif
+         if k > 0 then uhp += value[k] + "." endif
+         j = $find("IDX", name[], ++i, "F")
+         k = $find("IDX2", name[], i, "F")
+         i = $find("UHP", name[], i, "F")
+      enddo   
+   '   uhp += att
+   endif
+endif
+if uhp dp then
+   att = uhp + att
+'   i = findVar(uhp, varlist[])
+   i = findVar(att, varlist[])
    if i > 0 then
       (void)$copyvar(i,copyptr)
       if temp[] dp then
@@ -1109,3 +1139,7 @@ do while varlist[varptr] != varname
 enddo
 findvar = varptr
 end findVar
+
+%preload wrap line-ending(none)
+'"
+%endpreload
