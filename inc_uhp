@@ -4,7 +4,7 @@
 '-----------------------------------------------------------------------------------------
 'Fake Version String:
 '
-' version 3.0 04/25/2012 Tim Markello
+' version 3.1 04/30/2012 Tim Markello
 ' Copyright 9/2/2011 Tim Markello timmarkello@gmail.com
 '
 '-----------------------------------------------------------------------------------------
@@ -69,6 +69,13 @@
 ' ~ re work of literal tag edits to accept any system / uscript edit
 ' + added dot notation functionality for 1 and 2 diminsion arrays
 ' - variable cleanup
+'*version 3.1
+' Tim 4/30/12 3.1
+' + added inherant indirect variable referencing from tag attribute values to variables in main script
+'     use the '@' + 'varname' to indicate that the value of the attribute should contain the value of the variable
+'     in the mainscript with the matching variable name.
+' + add $checkoutput() checking to input values being mapped out to the mainscrip. Fixes issues with "<" in an input
+'     value that is then displayed as a <literal> for a report / snapshot screen.
 '-----------------------------------------------------------------------------------------
 'General Use Info:
 '
@@ -457,11 +464,11 @@ _TAGPROC:
          string = "/" + parentTag[parentptr]
       enddo
       tagtype = parentTag[parentptr]
-      attName[] = parentAttName[parentptr]
+      attName[] = parentAttNam[parentptr]
       attValue[] = parentAttVal[parentptr]
       (void)$arrRemove(parentTag[parentptr])
       (void)$arrRemove(parentAttVal[parentptr])
-      (void)$arrRemove(parentAttName[parentptr])
+      (void)$arrRemove(parentAttNam[parentptr])
       --parentptr
    endif
 
@@ -1003,6 +1010,8 @@ _MAPOUT:
                $clear(temp[]) $clear(string) 
             else
                (void)$putds(temp[],string, "|")
+               string = $checkoutput(string)
+               (void)$getds(temp[],string,"|")
             endif
             if idx2ptr > 0 then
                if idxptr > 0 then
@@ -1081,7 +1090,18 @@ $allowupdate(varlist[],uhp)
 copyptr = $varptr(temp[])
 i = $find(att, name[], 1, "F")
 if i > 0 then
-   getAttVal[1] = value[i]
+   if $charx(value[i],1) = "@" then
+      j = findVar($seg(value[i],2),varlist[])
+      if j > 0 then
+         (void)$copyvar(j,copyptr)
+         if $uc(temp[]) = "NULL" then
+            $clear(temp[])
+         endif
+         getAttVal[] = temp[]
+      endif
+   else
+      getAttVal[1] = value[i]
+   endif
 endif
 if uhp !dp then
    i = $find("UHP", name[], 1, "F")
