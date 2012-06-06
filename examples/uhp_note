@@ -19,6 +19,7 @@ ntevent     is x
 matchdur    is x
 days_to_enter  is x
 load_on_start  is x
+useEndTime  is x
 'dbx options
 save_to_dbx is x
 dbx_code1   is x
@@ -36,6 +37,8 @@ t_code2     is x
 t_date      is d
 t_time      is t
 t_bin       is b
+sacFlip     is x
+noteTemp    is x
 
 v_sac[]     is x
 l_sac[]     is x
@@ -66,6 +69,7 @@ e.loc       is x
 e.att       is x
 e.lof       is x
 e.type      is x
+e.usr.i2    is x
 tempend     is t
 e.erkey[]   is x
 
@@ -140,6 +144,11 @@ d_objinfo   is x
 d_txpinfo   is x
 d_txpsel    is x
 d_note      is x
+d_starts    is x
+d_sdurs     is x
+d_cdurs     is x
+d_ends      is x
+
 
 rc          is b
 i           is b
@@ -285,6 +294,7 @@ do while 1 = 1
       endif
    endif
 enddo
+'$unloadlib()
 return
 
 _PREFORM:
@@ -364,12 +374,17 @@ _VALIDATE:
    if e.start[1] !dp then
       err[1] += "<li>Please Enter a Start Time</li>"
    endif
-   if e.dur[1] !dp then
-      err[1] += "<li>Please Enter a Duration</li>"
+      if e.end[1] dp and useEndTime = "Y" then
+         tempend = $time(e.end[1]) - $time(e.start[1])
+         e.dur[1] = $fmt(tempend,"HH:MM")
+      endif
+      if e.dur[1] dp and useEndTime != "Y" then
+         tempend = $time(e.start[1]) + $time(e.dur[1])
+         e.end[1] = $fmt(tempend, "HH:MM AP")
+      endif
+   if e.dur[1] !dp and e.end[1] !dp then
+      err[1] += "<li>Please Enter a Duration or End Time</li>"
       $clear(tempend)
-   else
-      tempend = $time(e.start[1]) + $time(e.dur[1])
-      e.end[1] = $fmt(tempend, "HH:MM AP")
    endif
    if e.recip !dp then
       err[1] += "<li>Please Select a Recipient</li>"
@@ -387,11 +402,23 @@ _VALIDATE:
    endif
 
    if err[1] !dp then
-      usr-lib:check_pne_rules(notetype, e.date, e.dur[1], e.cl.dur[1], e.start[1], e.ser, e.ru,
-                      temp[], regid, e.loc, e.recip, e.att, "N")
+      $clear(temp[])
+      string = e.ser
+      usr-lib:check_pne_rules(notetype, e.date, e.dur[1], e.cl.dur[1], e.start[1], string, e.ru,
+                      temp[], regid, e.loc, e.recip, e.att, "Y")
+      e.usr.i2 = string
+'      if sacFlip = "Y" then
+'         if string != e.ser then
+'            e.usr.i2 = e.ser
+'            e.ser = string
+'         endif
+'      else
+'         e.ser = string
+'      endif
       if temp[] dp then
          (void)$putds(temp[], string, "|")
          err[1] += "<li>" + $replace("|", "</li><li>", string) + "</li>"
+         $clear(temp[])
       endif
       usr-lib:overlap_pne(temp[], e.ser, e.start[1], e.dur[1], e.date, e.staff, regid,
                   notetype, e.erkey[1], e.recip, e.loc, e.att)
@@ -447,6 +474,9 @@ _VALIDATE:
          endif
       endif
    enddo
+   if err[] !dp then
+      call "PNESUPER" (regid, notetype, $operstaffid, e.lof, e.ser)
+   endif
 goback
 
 _SAVE:
@@ -487,6 +517,7 @@ _SAVE:
                                  gosub _WRITEDBX
                                  gosub _SCHEDULE
                                  draft_handle:dr_deleteDraft(Regid, ,$oper,$scriptid,Suffix)
+'                                 $unloadlib()
                                  return
                               endif
             endselect
@@ -547,10 +578,19 @@ _WRITEEVENT:
          case 11     e.type = "B"
          case other  e.type = $castx(rc)
       endselect
-'      e.staff = $operstaffid
+      'flip the sac to non-billable
+      if sacFlip = "Y" then
+         if e.usr.i2 != e.ser then
+            string = e.usr.i2
+            e.usr.i2 = e.ser
+            e.ser = string
+         else
+            $clear(e.usr.i2)
+         endif
+      endif
       $isnrgfrom = "ISN"
       e-lib:clearEr()
-      e-lib:putEventInfo(e.case.no[i], e.staff ,e.ser, e.ru,e.date ,e.dur[i],e.cl.dur[i],e.start[i],e.recip ,e.loc ,e.att,e.type)
+      e-lib:putEventInfo(e.case.no[i], e.staff ,e.ser, e.ru,e.date ,e.dur[i],e.cl.dur[i],e.start[i],e.recip ,e.loc ,e.att,e.type,e.usr.i2,e.lof)
       isn[i] = $isnkey
       if snapid[i] dp then
          rc = note-lib:isn.doc.add(parmfile, option, $isnkey, e.date, snapid[i])
@@ -574,7 +614,7 @@ _WRITEDBX:
          'handle dbx write error
          $brmsg($fmt(rc, "dbx NOT saved 99"), 1, "WEC")
       else
-         $brmsg("dbx saved", 1, "WEC")
+'         $brmsg("dbx saved", 1, "WEC")
       endif
    endif
 goback
@@ -619,7 +659,7 @@ _LOADDBX:
       draft_handle:dr_deleteDraft(Regid, ,$oper,$scriptid,Suffix)
    endif
    if $dbxreadk(dbx_key[i], dbx_string, dbx_desc,,,,t_bin) = 0 then
-      e.ser = t_bin
+      'e.ser = t_bin
       $parsem(dbx_string, 1, "|",, note, d_objinfo, d_txpinfo, d_txpsel, d_note)
       objinfo[] = draft.decode(d_objinfo)
       txpinfo[] = draft.decode(d_txpinfo)
@@ -636,7 +676,12 @@ _SCHEDULE:
 goback
 
 _DRAFT:
+   if note_handle !dp then
+'      $brmsg("note handle missing",1,"WEC")
+      note_handle = "l_noteLib"
+   endif
    string = note_handle:generatesuffix(e.date,e.start[1],e.ser,e.ru)
+'   string = "l_noteLib":generatesuffix(e.date,e.start[1],e.ser,e.ru)
    if string != suffix and suffix dp then
       draft_handle:dr_deleteDraft(RegID, ,$oper,$scriptid,Suffix) 
    endif
@@ -648,31 +693,41 @@ _DRAFT:
       d_txpinfo += draft.encode(txpinfo[i])
       d_txpsel  += draft.encode(c_txp[i])  
    enddo
-   d_note = draft.encode(g_note[])
+   d_starts = draft.encode(e.start[])
+   d_sdurs  = draft.encode(e.dur[])
+   d_cdurs  = draft.encode(e.cl.dur[])
+   d_ends   = draft.encode(e.end[])
+   d_note   = draft.encode(g_note[])
    draft_handle:dr_putDraftSx(clientDB, Suffix, RegID, Note, , 
                               $operstaffid, e.date, e.start[1], e.ser, e.RU, e.dur[1], 
                               e.cl.dur[1], e.Loc, , e.Recip, , 
                               e.Att, , , , , , 
-                              , ParmFile, note, d_objinfo, d_txpinfo,d_txpsel,d_note) ', Var22,...,Var247)
+                              , ParmFile, note, d_objinfo, d_txpinfo,d_txpsel,d_note,e.end[1],
+                              e.usr.i2, d_starts, d_sdurs, d_cdurs, d_ends) ', Var22,...,Var247)
 goback
 
 _LOAD:
    if general_handle:gl_yn("Save Current Note?", "Select Yes to Save the current screen, No to delete") = "N" then
       draft_handle:dr_deleteDraft(Regid, ,$oper,$scriptid,Suffix)
+      (void)$arrRemove(l_draft[i])
+      if l_draft[] !dp then
+         l_draft[i] += "<div class='draftitem' id='draftitem-" + i + "' >No Drafts on File</div>"
+      endif
    endif
    draft_handle:dr_getDraftSx(clientDB, dr_Suffix[i], RegID, Note, , 
                               $operstaffid, e.date, e.start[1], e.ser, e.RU, e.dur[1], 
                               e.cl.dur[1], e.Loc, , e.Recip, , e.Att, , , , , , 
-                              , ParmFile,note, d_objinfo,d_txpinfo, d_txpsel,d_note) ', Var22,...,Var247)
+                              , ParmFile,note, d_objinfo,d_txpinfo, d_txpsel,d_note,e.end[1],
+                              e.usr.i2, d_starts, d_sdurs, d_cdurs, d_ends) ', Var22,...,Var247)
    objinfo[] = draft.decode(d_objinfo)
    txpinfo[] = draft.decode(d_txpinfo)
-   c_txp[] = draft.decode(d_txpsel)
-   g_note[] = draft.decode(d_note)
-   suffix = dr_suffix[i]
-   (void)$arrRemove(l_draft[i])
-   if l_draft[] !dp then
-      l_draft[i] += "<div class='draftitem' id='draftitem-" + i + "' >No Drafts on File</div>"
-   endif
+   c_txp[]   = draft.decode(d_txpsel)
+   d_starts  = draft.decode(e.start[])
+   d_sdurs   = draft.decode(e.dur[])
+   d_cdurs   = draft.decode(e.cl.dur[])
+   d_ends    = draft.decode(e.end[])
+   g_note[]  = draft.decode(d_note)
+   suffix    = dr_suffix[i]
 goback
 
 _READ:
@@ -744,7 +799,7 @@ _INIT:
       '$clear(parmfile)
    endif
    getoption(option)
-   
+   $brmsg(option,1,"WEC")
    if mainform[] !dp or reportform !dp then
       return
    endif
@@ -872,7 +927,7 @@ Speech: {speech}
 Thought Process: {proc}
 Thought Content: {cont}
 Perceptual: {prec}
-Congnition: {cogn}
+Cognition: {cogn}
 Level of Consciousness: {consc}
 Orientation: {orien}
 Memory: {mem}
@@ -887,7 +942,7 @@ Reasoning: {reas}
 
 %preload baker_note line-ending(cr)
 
-
+Side Effects: {side}
 
 Appearance: {appear}
 Attitude: {tude}
@@ -898,7 +953,7 @@ Speech: {speech}
 Thought Process: {proc}
 Thought Content: {cont}
 Perceptual: {prec}
-Congnition: {cogn}
+Cognition: {cogn}
 Level of Consciousness: {consc}
 Orientation: {orien}
 Memory: {mem}
@@ -906,5 +961,9 @@ Intelligence: {intell}
 Judgement: {judge}
 Insight: {insight}
 Reasoning: {reas}
+
+Assessment/Plan:
+{plan}
+
 
 %endpreload
