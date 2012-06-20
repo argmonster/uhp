@@ -76,6 +76,9 @@
 '     in the mainscript with the matching variable name.
 ' + add $checkoutput() checking to input values being mapped out to the mainscrip. Fixes issues with "<" in an input
 '     value that is then displayed as a <literal> for a report / snapshot screen.
+' Tim 6/20/12 3.2
+' + added rptdate, rpttime, and scriptid attributes to <snap />. Values passed will be updated to $$doc.ddt, $$doc.dtm and
+'     $$doc.app respectively. If no values are passed to the attributes $today, $timenow and $scriptid will be defaulted.
 '-----------------------------------------------------------------------------------------
 'General Use Info:
 '
@@ -438,6 +441,7 @@ _TAGPROC:
       case "SELECT"     gosub _DROPBOX
       case "OPTION"     gosub _DROPBOXOPT
       case "INPUT"      gosub _INPUT
+                        tagend = "/"
       case "BLOCK"      gosub _BLOCK
                         tagend = "/"
       case "/BLOCK"     gosub _ENDBLOCK
@@ -833,6 +837,9 @@ _SNAPSHOT:
    temp[3] = getAttVal("PARMFILE", attName[], attValue[], varlist[], dotnote)
    temp[4] = getAttVal("FORMID", attName[], attValue[], varlist[], dotnote)
    temp[5] = getAttVal("REGID", attName[], attValue[], varlist[], dotnote)
+   temp[7] = getAttVal("RPTDATE", attName[], attValue[], varlist[], dotnote)
+   temp[8] = getAttVal("RPTTIME", attName[], attValue[], varlist[], dotnote)
+   temp[9] = getAttVal("SCRIPTID", attName[], attValue[], varlist[], dotnote)
    varptr = findVar(temp[5], varlist[])
    if varptr > 0 then
       copyptr = $varptr(string)
@@ -841,7 +848,7 @@ _SNAPSHOT:
    endif
    temp[6] = getAttVal("DBNUM", attName[], attValue[], varlist[], dotnote)
    if temp[4] dp and temp[6] dp then
-      snap_handle:sn_CreateReport(temp[1], temp[2], temp[3], temp[4], temp[5], $num(temp[6]),,,,,$ScriptID) 
+      snap_handle:sn_CreateReport(temp[1], temp[2], temp[3], temp[4], temp[5], $num(temp[6]),,,temp[7],temp[8],temp[9]) 
    else 
       $ctag("ERROR-Unable to Ready Snap Shot")
    endif
