@@ -4,7 +4,7 @@
 '-----------------------------------------------------------------------------------------
 'Fake Version String:
 '
-' version 3.1 04/30/2012 Tim Markello
+' version 3.3 07/26/2012 Tim Markello
 ' Copyright 9/2/2011 Tim Markello timmarkello@gmail.com
 '
 '-----------------------------------------------------------------------------------------
@@ -79,6 +79,14 @@
 ' Tim 6/20/12 3.2
 ' + added rptdate, rpttime, and scriptid attributes to <snap />. Values passed will be updated to $$doc.ddt, $$doc.dtm and
 '     $$doc.app respectively. If no values are passed to the attributes $today, $timenow and $scriptid will be defaulted.
+' Tim 7/26/12 3.3 *greater than bug fix*
+' + added _NOPARSE subroutine to allow tags that will never have children tags that may need parsing to skip the parsing
+'     routines until the corresponding closing tag is found. This subroutine can optionally $ctag the file lines or not
+'     by setting the 'skip' variable in the _TAGPROC subroutine.
+'
+'     **This fixes the 'greater than' bug by bypassing the parsing of the contents of <script> tags.
+' + tags currently set to _NOPARSE = <script>, <style>, and <head>
+' ~ re arranged the select cases in _TAGPROC
 '-----------------------------------------------------------------------------------------
 'General Use Info:
 '
@@ -233,6 +241,9 @@ uhp.arg[]      is x
 uhp.path       is x     'path of the html template for processing
 uhp.handle     is b
 uhp.line       is x
+uhp.file[]     is x
+uhp.cnt        is b
+uhp.max        is b
  'uscript html control variables
 varptr         is b     'variable pointer for variables in main script
 copyptr        is b     'variable pointer for uhp-variables to copy main script vars to
@@ -326,6 +337,21 @@ if $argusage(uhp.arg[]) = 3 then  'passed in as array
 else     'simple variable or constant
    uhp.path = uhp.arg[]
 endif
+'### alternative file loading method ###
+'if $getfile(uhp.file[], uhp.path) > 0 then
+'   uhp = 1 
+'   return
+'endif
+'tagstart = "<"
+'uhp.cnt = 0
+'uhp.max = $maxarray(uhp.file[])
+'do while uhp.cnt++ < uhp.max
+'   uhp.line = uhp.file[uhp.cnt]
+'   currentptr = 1
+'   linelen = $len(uhp.line) + 1
+'   gosub _TAGFIND
+'enddo
+'#######################################
 'open and process template
 uhp.handle = $fileavail()
 if $openfile(uhp.handle, uhp.path, "I") > 0 then
@@ -356,6 +382,13 @@ return
 _NEXTLINE:
    if saveLine[] !dp then
       currentptr = 1
+'### alternative file loading method ###
+'      if ++uhp.cnt > uhp.max then
+'         uhp = 2
+'         return
+'      endif
+'      uhp.line = uhp.file[uhp.cnt]
+'#######################################
       if $readfile(uhp.handle, uhp.line) > 0 then
          uhp = 2
          (void)$closefile(uhp.handle)  'don't leave a mess
@@ -425,31 +458,32 @@ goback
 _TAGPROC:
    i = 2
    select $uc(tagtype)
-      case "HTML"
-        or "/HTML"      'do nothing
-                        tagend = "/"
-      case "HEAD"       skip = "Y"
-      case "/HEAD"      skip = "N"
-                        tagend = "/"
-      case "!--"        'do nothing
-                        tagend = "/"
-      case "BODY"       gosub _BODYTAG
-                        tagend = "/"
-      case "/BODY"      $sendform(formName)
-                        tagend = "/"
-      case "TEXTBLOCK"  gosub _TEXTBLOCK
-      case "SELECT"     gosub _DROPBOX
-      case "OPTION"     gosub _DROPBOXOPT
       case "INPUT"      gosub _INPUT
                         tagend = "/"
+      case "SELECT"     gosub _DROPBOX
+      case "OPTION"     gosub _DROPBOXOPT
+      case "TEXTBLOCK"  gosub _TEXTBLOCK
       case "BLOCK"      gosub _BLOCK
                         tagend = "/"
       case "/BLOCK"     gosub _ENDBLOCK
       case "LITERAL"    gosub _LITERAL
       case "PRINT"      gosub _PBUTTON
       case "SNAP"       gosub _SNAPSHOT
-      case "VAREDIT"    gosub _VAREDIT
       case "LIBRARY"    gosub _LIBRARY
+      case "VAREDIT"    gosub _VAREDIT
+      case "BODY"       gosub _BODYTAG
+                        tagend = "/"
+      case "/BODY"      $sendform(formName)
+                        tagend = "/"
+      case "SCRIPT"     gosub _NOPARSE
+      case "STYLE"      gosub _NOPARSE
+      case "HTML"
+        or "/HTML"      'do nothing
+                        tagend = "/"
+      case "HEAD"       skip = "Y"
+                        gosub _NOPARSE
+      case "!--"        'do nothing
+                        tagend = "/"
       case other        $ctag(opentag)
                         tagend = "/"
    endselect
@@ -477,6 +511,36 @@ _TAGPROC:
    endif
 
 goback
+
+'-------------------------------------
+'-------------------------------------
+_NOPARSE:
+   if skip != "Y" then $ctag(opentag) endif
+   tagtype = "</" + tagtype + ">"
+   string = $uc(uhp.line)                          'cache the upper case line because $find has issues with executable
+   i = $find(tagtype, string, currentptr, "F")     'strings in argument 2 (seems to return partial matches)
+   if i = 0 then
+      i = linelen - currentptr
+      string = $seg(uhp.line, currentptr, i)
+      i = 0
+      if skip != "Y" then $ctag(string) endif
+      gosub _NEXTLINE
+      do while i = 0
+         if skip != "Y" then $ctag(uhp.line) endif
+         gosub _NEXTLINE
+         string = $uc(uhp.line)
+         i = $find(tagtype, string, currentptr, "F")
+      enddo
+   endif
+   i += 9   'end of script
+   i = i - currentptr
+   string = $seg(uhp.line, currentptr, i)
+   if skip != "Y" then $ctag(string) endif
+   currentptr += i++
+   tagend = "/"
+   skip = "N"
+goback
+
 
 '-------------------------------------
 ' the uhp input tag
@@ -747,7 +811,7 @@ _LITERAL:
    else
       saveVal[1] = temp[3]
    endif
-   $parsem($uc(temp[1]),1,"`",temp[11],,temp[12],temp[13])
+   $parsem($uc(temp[1]),1,"`",temp[11],,temp[12],temp[13],temp[14])
    if temp[12] !dp then temp[12] = $uc(temp[2]) endif
    if $uc(temp[1]) = "SAC" then temp[1] = "SAM" endif 'make original implimentation compatable with system edits.
    if $uc(temp[1]) = "DB" then temp[1] = "DB``" + temp[2] endif
@@ -774,6 +838,7 @@ _LITERAL:
                         (void)$dstinfo(temp[12], dstinfo[])
                         if dstinfo[16] dp then dstname[1] = dstinfo[16] endif
                         if temp[13] !dp then temp[13] = 1 endif
+                        if temp[14] !dp then temp[14] = ", " endif
                         tempnum = 1 'set the layercounter
                         (void)$dstlist(dstlist, $num(dstinfo[4]), dstname[], dstval[])
                         if $dbread($num(dstinfo[4]), string, dstlist) > 1 then
@@ -781,15 +846,15 @@ _LITERAL:
                         endif
                         do until tempnum++ = $num(temp[13])
                            if temp[13] = "ALL" then
-                              if temp[14] dp then temp[14] += ", " endif
-                              temp[14] += dstval[2]
+                              if temp[15] dp and dstval[2] dp then temp[15] += temp[14] endif
+                              temp[15] += dstval[2]
                            endif
                            if $dbreadnextdst($num(dstinfo[4]), string, dstlist) > 1 then
                               temp[13] = tempnum
                            endif
                         enddo
-                        if temp[14] dp and dstval[2] dp then temp[14] += ", " endif
-                        string = temp[14] + dstval[2]
+                        if temp[15] dp and dstval[2] dp then temp[15] += temp[14] endif
+                        string = temp[15] + dstval[2]
          case other     if temp[11] dp then (void)$getEditMsg(string, temp[1], string) endif
       endselect
       'let's process the new stuff!!
@@ -840,6 +905,7 @@ _SNAPSHOT:
    temp[7] = getAttVal("RPTDATE", attName[], attValue[], varlist[], dotnote)
    temp[8] = getAttVal("RPTTIME", attName[], attValue[], varlist[], dotnote)
    temp[9] = getAttVal("SCRIPTID", attName[], attValue[], varlist[], dotnote)
+   temp[10] = getAttVal("SNAPID", attName[], attValue[], varlist[], dotnote)
    varptr = findVar(temp[5], varlist[])
    if varptr > 0 then
       copyptr = $varptr(string)
@@ -849,7 +915,9 @@ _SNAPSHOT:
    temp[6] = getAttVal("DBNUM", attName[], attValue[], varlist[], dotnote)
    if temp[4] dp and temp[6] dp then
       snap_handle:sn_CreateReport(temp[1], temp[2], temp[3], temp[4], temp[5], $num(temp[6]),,,temp[7],temp[8],temp[9]) 
-   else 
+   elseif temp[10] dp then
+      snap_handle:sn_viewsnap(temp[10], "bigreport")
+   else
       $ctag("ERROR-Unable to Ready Snap Shot")
    endif
 goback
@@ -1016,9 +1084,9 @@ _MAPOUT:
             if temp[] !dp or temp[] = "" then 
                $clear(temp[]) $clear(string) 
             else
-               (void)$putds(temp[],string, "|")
+               (void)$putds(temp[],string, x"00")
                string = $checkoutput(string)
-               (void)$getds(temp[],string,"|")
+               (void)$getds(temp[],string,x"00")
             endif
             if idx2ptr > 0 then
                if idxptr > 0 then
