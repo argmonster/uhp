@@ -1,0 +1,540 @@
+library uhp_recordAdd()
+
+_regid         is x
+_db            is b
+'dst opt
+_dstname[]     is x
+_dstlabel[]     is x
+_dstedit[]     is x
+_dstedittype[] is x
+_dsteditnum[]  is x
+_dstvals[,]    is x
+_dsteffd[,]    is x
+_dstDef[]      is x
+'dbx opt
+_dbxkey1       is x
+_dbxkey2       is x
+_dbxblob[]     is x
+_dbxRecDelim   is x
+_dbxFldDelim   is x
+'_dbxValDelim   is x
+
+
+_ui[]     is x
+_list          is dstlist
+_id            is x
+_render[]      is x
+_re-render     is x
+_lockedonly    is x
+_disponly      is x
+_varlist[]     is x
+_vartype[]     is x
+_varlistptr    is b
+'format args
+_tableClass    is x
+_thClass       is x
+_trClass       is x
+_tdClass       is x
+_tableID       is x
+_trID          is x
+_tdID          is x
+'uhp-note vars
+_varname       is x
+_varptr       is b
+_varptr2      is b
+_uhp-end       is b
+_max           is b
+_btn       is x
+_b_name        is x
+_b_sumbit[]    is x
+_addptr        is b
+_finptr        is b
+_rmptr         is b
+_addlabel     is x
+_rmlabel      is x
+_finlabel     is x
+_updatelabel   is x
+_d-lib         is b
+_x-lib         is b
+_lock[]        is x
+_lockptr       is b
+_save          is b
+_writeOnFinal  is x
+_trigger[]     is x
+_trigger_val[] is x
+_allowUpdate   is x
+_allowAddNew   is x
+_readOld       is x
+_forcerender   is x
+
+_mylib         is b
+
+%global _regid, _dstHead, _dstname[], _dstlabel, _dstvals[], _dstedit, _ui[], _render[],_re-render, _dsteffd
+%global _list, _db, _d-lib, _id, _dstDef, _dstedittype, _dsteditnum
+%global _x-lib, _dbxkey1, _dbxkey2, _dbxblob, _dbxRecDelim, _dbxFldDelim, _dbxValDelim
+%global _varlist, _varlistptr, _vartype, _mylib
+%global _varname, _varptr, _varptr2, _btn, _uhp-end
+%global _addptr, _finptr, _rmptr, _addlabel, _rmlabel, _finlabel, _updatelabel
+%global _b_name, _lock[], _lockedonly, _lockptr, _disponly, _save, _max, _writeOnFinal
+%global _trigger, _trigger_val, _allowUpdate, _allowAddNew, _readOld, _forcerender
+%global _tableClass, _tableID, _trClass, _trID, _tdClass, _tdID, _thClass
+
+on load do:
+   _addptr = 1
+   _finptr = 2
+   _rmptr = 3
+   _addlabel = "Save"
+   _rmlabel = "Remove"
+   _finlabel = "Finalize"
+   _updatelabel = "Update"
+   _tableClass = "recordDisplay"
+   _tableID = "dstrec"
+   _trClass = "recordHead"
+   _thClass = "recordHead"
+   _trid = "dstrec"
+   _tdClass = "recordDetail"
+   _tdID = "dstrec"
+   _mylib = $mylibhandle
+   '_varptr = 1
+   (void)$loadlib(_d-lib, "lib_DST")
+   (void)$loadlib(_x-lib, "lib_DBX")
+return
+
+on unload do:
+   (void)$loadlib(_d-lib,"lib_DST")
+   if _writeOnFinal != "Y" then
+      writeFinal()
+   endif
+return
+
+
+'------------------------------------------------------------------------
+'------------------------------------------------------------------------
+public dynamic function render(args[], vals[], vars[], set-vals[])[] is x
+args[]      is x
+vals[]      is x
+vars[]      is x
+set-vals[]  is x
+i           is b
+j           is b
+rc          is b
+string      is x
+'temp[]      is x
+fake[]      is x
+ptr         is b
+ptr2        is b
+temp-rm     is b
+temp-sv     is b
+max         is b
+editlabel   is x
+edit-str    is x
+push-val    is x
+$allowupdate(vars[], set-vals[])
+$clear(vars[], set-vals[])
+argproc(args[],vals[])
+if _varptr2 dp then
+   ptr = _varptr
+   ptr2 = _varptr2
+else
+   ptr = 1
+   ptr2 = _varptr
+endif
+if _re-render = "Y" or _forceRender = "Y" then
+   $clear(_render[])
+   if _dstname[] dp then
+      _d-lib:setDsts(_dstname[])
+      if $uc(_readOld) = "Y" then
+         i = 0
+         rc = _d-lib:read(_regid)
+         do while rc < 2
+            '_dstvals[++i] = _d-lib:dst(_dstname[])[]
+            _d-lib:listinfo(_dstname[],vars[],set-vals[])
+             _dstvals[++i] = vars[]
+             _dsteffd[i] = set-vals[]
+            $clear(vars[], set-vals[])
+            rc = _d-lib:nextrec()
+         enddo
+      endif
+   elseif _dbxkey1 dp and _dbxkey2 dp then
+      if $uc(_readOld) = "Y" then
+         _dbxblob[] = _x-lib:read(_db, _regid, _dbxkey1, _dbxkey2)[]
+         i = 0
+         do while i++ < $maxarray(_dbxblob[])
+            if _dbxRecDelim dp then
+               (void)$getds(fake[], _dbxblob[i], _dbxRecDelim)
+            else
+               fake[] = _dbxblob[i]
+            endif
+            j = 0
+            do while j++ < $maxarray(fake[])
+               if _dbxFldDelim dp then
+                  (void)$getds(_dstvals[j],fake[j],_dbxFldDelim)
+               else
+                  _dstvals[j] = fake[j]
+               endif
+               _dsteffd[j,1] = $today
+            enddo
+         enddo
+      endif
+   endif
+            'if _max !dp then
+               _max = $maxarray(_dstvals[])
+            'endif
+endif
+
+if _render[] !dp then
+   max = _max
+   if $uc(_allowAddNew) != "N" then max++ endif
+   if max > 0 then
+      
+      'dst table:
+      (void)$arrpush(_render[], `"<table id='" + _tableid + "' class='" + _tableClass + "'>"`)
+      'header row
+      string = "<tr id='" + _trid + "-head' class='" + _thClass + "'><th></th>"
+      i = 0
+      do while i++ < $maxarray(_dstlabel[])
+         string += "<th id='" + _tdid + "-header-" + i + "' class='" + _tdClass + "'>" + _dstlabel[i] + "</th>"
+      enddo
+      string += "</tr>"
+      (void)$arrpush(_render[], string)
+      'details:
+      i = 0
+      temp-rm = _rmptr - 1
+'      if _dsteffd[i,1] = 
+      do while i++ < max
+         'row + 'action' column
+         string = "<tr id='" + _trid + "-" + i + "' class='" + _trClass + "'>"
+         if _disponly != "Y" then
+            temp-rm++
+            string += "<td id='action-" + i + "' class='" + _tdClass + "'><$input type='submit' uhp='" 
+                   + _btn + "' value='" + _rmlabel + "' idx='" 
+                   +  _mylib + "' idx2='" + temp-rm 
+            temp-rm++
+            if _dsteffd[i,1] dp then
+               editlabel = _updatelabel
+            else
+               editlabel = _addlabel
+            endif
+            string += "' classsel='link' classnotsel='link' /><$input type='submit' uhp='" 
+                   + _btn + "' value='" + editlabel + "' idx='" +  _mylib + "' idx2='" 
+                   + temp-rm + "' classsel='link' classnotsel='link' />"
+         endif
+         string += "</td>"
+         j = 0
+         do while j++ < $maxarray(_dstlabel[])
+            $clear(edit-str, push-val)
+            string += "<td id='" + _tdid + "-" + i + "-" + j + "' class='" + _tdClass + "'><" 
+'            if _varptr2 dp then
+'               ptr2++
+'               _uhp-end = ptr2
+'            else
+'               ptr++
+'               _uhp-end = ptr
+'            endif
+            _uhp-end = ptr2++
+            if _disponly = "Y" then
+               string += "$literal " 
+               if _dstedittype[j] dp and _dsteditnum[j] dp then
+                  string += "edittype='" + _dstedittype[j] + "' editnum='" + _dsteditnum[j] + "' "
+               endif
+               string += "value='" '+ _varname + "' "
+            else
+               string += _ui[j] + " id='" + $replace(" ","_",_dstlabel[j]) + "-" + i + "' uhp='"
+               if (i = max and _dstdef[j] dp) then push-val = _dstdef[j] endif
+               if _dstvals[i,j] dp then push-val = _dstvals[i,j] endif
+'               if 
+'               or _allowUpdate = "Y" then
+               if push-val dp then
+                  (void)$arrPush(vars[], `_varname + "|" + ptr + "|" + ptr2 + "|"`)
+                  (void)$arrInsert(set-vals[`$maxarray(vars[])`], push-val)
+               endif
+               if _dstedit[j] = "Y" then
+                  edit-str = "<br /><$varedit uhp='" + _varname + "' idx='" + ptr + "' idx2='" + ptr2 + "' />"
+               endif
+            endif
+            string += _varname + "' idx='" + ptr + "' idx2='" + ptr2 + "' />" + edit-str + "</td>"
+         enddo
+         (void)$arrpush(_render[],string)
+      enddo
+'      (void)$arrpush(_render[],string)
+      'string += "</table>"
+      (void)$arrpush(_render[],"</table>")
+   endif
+'   if $uc(_disponly) != "Y" then
+'      string += "<div id='recFoot'><input type='submit' uhp='" + _btn 
+'          + "' value='" + _addlabel + "' idx='" + $mylibhandle + "' " + "idx2='" + _addptr + "' "
+'          + "classsel='link' classnotsel='link' />"
+'          + "<input type='submit' uhp='" + _btn 
+'          + "' value='" + _finlabel + "' idx='" + $mylibhandle + "' " + "idx2='" + _finptr + "' "
+'          + "classsel='link' classnotsel='link' /></div>"
+'   endif
+endif
+render[] = _render[]
+end render
+
+
+
+'------------------------------------------------------------------------
+'------------------------------------------------------------------------
+public dynamic function submit(b_ptr, b_list[], ui[]) is null
+b_list[]       is x
+ui[,]          is x
+b_ptr          is b
+ptr            is b
+ptr2           is b
+ptr-st         is b
+i              is b
+j              is b
+vals[,]        is x
+effd[,]        is x
+temp[]         is x
+startidx       is b
+actionidx      is b
+myidx          is b
+$clear(temp[],vals[])
+$allowupdate(ui[])
+'startidx = $num(_rmptr)
+actionidx = $mod(`b_ptr - _rmptr`,2) + 1
+myidx = ((b_ptr - actionidx - _rmptr + 1) / 2) + 1
+temp[1] = $fmt(actionidx, myidx, "99 && 99")
+'$brmsg(temp[1], 1, "WEC")
+vals[] = _dstvals[]
+gosub S_UPDATE
+select actionidx
+   'REMOVE
+   case 1      $clear(vals[myidx])
+               if _dstname[] dp then
+                  _d-lib:updateByValue(_regid,_dstname[],_dstvals[myidx], _dstname[], vals[myidx])
+               endif
+               $clear(vals[],effd[])
+               _max--
+               j = 0 
+               i = 0
+               do while j++ < $maxarray(_dstvals[])
+                  if j != myidx then
+                     vals[++i] = _dstvals[j]
+                     effd[i] = _dsteffd[j]
+                  endif
+               enddo
+               $clear(_dstvals[],_dsteffd[],_dbxblob[])
+               _dstvals[] = vals[]
+               _dsteffd[] = effd[]
+               if _varptr2 dp then
+                  ptr = _varptr
+                  ptr2 = _varptr2
+               else
+                  ptr = 1
+                  ptr2 = _varptr
+               endif
+               j = 0
+'               do while ptr-st < _uhp-end
+               do while ptr2 < _uhp-end
+                  j++
+                  i = 0
+                  do while i++ < $maxarray(_dstlabel[])
+'                     if _varptr2 dp then
+'                        ptr2++
+'                     else
+'                        ptr++
+'                     endif
+'                     ptr-st++
+                     ui[ptr,++ptr2] = _dstvals[j,i]
+                     _dbxblob[] += _dstvals[j,i] + _dbxfldDelim
+                  enddo
+                  _dbxblob[] += _dstvals[j,i] + _dbxRecDelim
+               enddo
+   case 2      if _dsteffd[myidx,1] dp then
+                  $brmsg("update",1,"WEC")
+                  if _dstname[] dp then
+                     _d-lib:updateByValue(_regid,_dstname[],_dstvals[myidx], _dstname[], vals[myidx])
+                  elseif _dbxkey1 dp and _dbxkey2 dp then
+                     _x-lib:save(,,,,,_dbxblob[])
+                  endif
+               else
+                  $brmsg("add",1,"WEC")
+                  if _dstname[] dp then
+                     _d-lib:add(_regid, _dstname[], vals[myidx])
+                  elseif _dbxkey1 dp and _dbxkey2 dp then
+                     _x-lib:save(,,,,,_dbxblob[])
+                  endif
+                  _dsteffd[myidx,1] = $today
+                  _max++
+               endif
+endselect
+_dstvals[] = vals[]
+'select b_ptr
+'   case 1      gosub S_UPDATE    'add button
+'               _max = j + 1
+'
+'   case 2      gosub S_UPDATE    'finalize button
+'               if _writeOnFinal = "Y" then
+'                  writeFinal()
+'               endif
+'
+'   case other  b_ptr = b_ptr - 3    'remove buttons
+'               j = 0 
+'               i = 0
+'               do while j++ < $maxarray(_dstvals[])
+'                  if j != b_ptr then
+'                     vals[++i] = _dstvals[j]
+'                  endif
+'               enddo
+'               $clear(_dstvals[])
+'               _dstvals[] = vals[]
+'               j = 0
+'               do while ptr-st < _uhp-end
+'                  j++
+'                  i = 0
+'                  do while i++ < $maxarray(_dstlabel[])
+'                     if _varptr2 dp then
+'                        ptr2++
+'                     else
+'                        ptr++
+'                     endif
+'                     ptr-st++
+'                     ui[ptr,ptr2] = _dstvals[j,i]
+'                  enddo
+'               enddo
+'               _max--
+'endselect
+$clear(_render[])
+return
+
+S_UPDATE:
+   $clear(_dbxblob[])
+   if _varptr2 dp then
+      ptr = _varptr
+      ptr2 = _varptr2
+'      ptr-st = ptr2
+   else
+'      ptr = _varptr
+      ptr = 1
+      ptr2 = _varptr
+'      ptr-st = ptr
+   endif
+   j = 0
+'   do while ptr-st < _uhp-end
+   do while ptr2 < _uhp-end
+      i = 0
+      j++
+      do while i++ < $maxarray(_dstlabel[])
+'         if _varptr2 dp then
+'            ptr2++
+'         else
+'            ptr++
+'         endif
+         'ptr-st++
+         if _lock[j] != "Y" then
+            vals[j,i] = ui[ptr,++ptr2]
+            _dbxblob[] += _dstvals[j,i] + _dbxfldDelim
+         endif
+      enddo
+      if _lock[j] != "Y" then
+         _dbxblob[] += _dstvals[j,i] + _dbxRecDelim
+      endif
+   enddo
+goback
+end submit
+                  
+                  
+'------------------------------------------------------------------------
+'------------------------------------------------------------------------
+public dynamic function argproc(args[], vals[]) is null
+args[]   is x
+vals[]   is x
+arg      is x
+copy[]   is x
+copyptr  is b
+xidx     is x
+idx      is b
+i        is b
+'vartype[] is x
+val      is v
+$clear(_re-render)
+i = 0
+do while i++ < $maxarray(args[], vals[])
+   $parsem($uc(args[i]), 1, "-", arg, xidx)
+   arg = "_" + arg
+   _varlistptr = $find(arg, _varlist[], 1, "F")
+   if _varlistptr = 0 then
+      _varlistptr = $maxarray(_varlist[])
+      do while _varlist[_varlistptr] != arg
+         (void)$getvar(++_varlistptr,,_vartype[_varlistptr],,_varlist[_varlistptr])
+         if _varlist[_varlistptr] !dp then
+            $clear(arg)   'invalid argument
+         endif
+      enddo
+   endif
+   if arg dp then
+      copyptr = $varptr(copy[])
+      (void)$copyvar(_varlistptr, copyptr)
+      if xidx dp then
+         idx = $num(xidx)
+      else
+         $clear(idx)
+      endif
+      vals[i] = $replace("{", "<", vals[i])
+      vals[i] = $replace("}", ">", vals[i])
+      if $charx(vals[i],1) = "$" then
+         select $uc(vals[i])
+            case "$TODAY"  vals[i] = $today
+            case "$OPER"   vals[i] = $oper
+            case "$OPERSTAFFID"  vals[i] = $operstaffid
+         endselect
+      endif
+      if copy[idx] != vals[i] then
+         $setvartype(val, _vartype[_varlistptr])
+         val = $cast(vals[i], _vartype[_varlistptr])
+         _re-render = "Y"
+         copy[idx] = val
+'         copy[idx] = vals[i]
+         (void)$copyvar(copyptr, _varlistptr)
+      endif
+   endif
+enddo
+'if _re-render = "Y" then
+'   $clear(_render[])
+'endif
+''rec.set()
+'_d-lib:setDsts(_dstname[])
+ 
+end argproc
+
+'public dynamic function rec.set() is null
+'_d-lib:setDsts(_dstname[])
+'end rec.set
+
+
+'------------------------------------------------------------------------
+'------------------------------------------------------------------------
+public dynamic function writeFinal() is null
+   i is b
+   j is b
+   c is b
+   temp[]   is x
+   if _save = "Y"
+'            if _d-lib !dp then
+'               (void)$loadlib(_d-lib, "lib_DST")
+'            endif
+      i = 0
+      do while i++ < $maxarray(_dstvals[])
+         if _dstvals[i] dp then
+            _d-lib:add(_regid, _dstname[], _dstvals[i])
+            if _trigger[] dp then
+               j = 0
+               do while j++ < $maxarray(_trigger[])
+                  if _trigger_val[j] = _dstvals[i,j] then
+                     $parsem(_trigger[j], 1, ",", temp[])
+                     c = $find("regid", temp[], 1, "F")
+                     if c > 0 then
+                        temp[c] = _regid
+                     endif
+                     call temp[1] (temp[2], temp[3], temp[4], temp[5], temp[6], temp[7], temp[8], temp[9])
+                  endif
+               enddo
+            _lock[i] = "Y"
+            endif
+         endif
+      enddo
+   endif
+end writeFinal

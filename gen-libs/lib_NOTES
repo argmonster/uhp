@@ -1,29 +1,39 @@
 %define clientdb 2
+%define d_formpath "/c0/forms/"
+%define d_parmpath $sysname + "/PARM/"
 
+' TJM 03/22/12 .01
+'  + isn.doc.add():
+'     + added isn.template support
+'     + added uhp_option handling of parmfile
+
+%version 01.0.01 3/22/12 GCC
 library lib_NOTES()
 
 _client[]         is x
 _idx              is b
 _txblob[]         is x
-
+%include inc_sysLibDef
 %global _client[], _idx, _txblob[]
 
-public dynamic function isn.doc.add(parmfile,option, key, e.date, snapid, $$isn.dlc, $$isn.dtp, $$isn.did, $$isn.dsr, $$isn.didid) is b
-parmfile is x
-key      is x
-e.date      is d
-option   is x
-snapid      is x
-rechead     is h
-$$isn.doc   is x
+public dynamic function isn.doc.add(parmfile,option, key, e.date, snapid, $$isn.dlc, $$isn.dtp, $$isn.did, $$isn.dsr, $$isn.didid, isn.template) is b
+parmfile       is x
+key            is x
+e.date         is d
+option         is x
+snapid         is x
+rechead        is h
+$$isn.doc      is x
 $$isn.dlc      is x
-$$isn.dtp    is x
+$$isn.dtp      is x
 $$isn.did      is x
 $$isn.dsr      is x
-$$isn.didid      is x
+$$isn.didid    is x
+isn.template   is x
 
-isndb       is b
-opt         is x
+isndb          is b
+opt            is x
+string         is x
 
 'make sure we have a register to update
 if key !dp then
@@ -31,17 +41,28 @@ if key !dp then
    return
 endif
 'default the isn dsts
-$$isn.doc = $varname($$isn.doc)
-$$isn.dlc = $varname($$isn.dlc)
-$$isn.dtp = $varname($$isn.dtp)
-$$isn.did = $varname($$isn.did)
-$$isn.dsr = $varname($$isn.dsr)
-$$isn.didid = $varname($$isn.didid)
+$$isn.doc    = $varname($$isn.doc)
+$$isn.dlc    = $varname($$isn.dlc)
+$$isn.dtp    = $varname($$isn.dtp)
+$$isn.did    = $varname($$isn.did)
+$$isn.dsr    = $varname($$isn.dsr)
+$$isn.didid  = $varname($$isn.didid)
+isn.template = $varname(isn.template)
 opt = "SYS"
 isndb = 9
 'let the parmfile override
-if parmfile dp then
-   getparm(parmfile)
+if $charx(parmfile,1) != "/" then
+   string =  d_parmpath + parmfile
+   if $checkfile(string) = 0 then
+      getparm(parmfile)
+   else
+      parmfile = d_formpath + parmfile
+      if $checkfile(parmfile) = 0 then
+         uhp_Option(parmfile)
+      endif
+   endif
+else
+   uhp_Option(parmfile)
 endif
 getoption(option)
 'map the dsts
@@ -51,6 +72,7 @@ $setvarnameo($$isn.dtp, $$isn.dtp)
 $setvarnameo($$isn.did, $$isn.did)
 $setvarnameo($$isn.dsr, $$isn.dsr)
 $setvarnameo($$isn.didid, $$isn.didid)
+$setvarnameo(isn.template, isn.template)
 
 select opt 
    case "SYS"  $$isn.dlc = "DBX"
@@ -63,9 +85,10 @@ select opt
    case other  isn.doc.add = 102
                return
 endselect
+isn.template = parmfile
 $dblock()
-(void) $dbpoint(isndb, key, rechead, $$isn.didid, $$isn.dlc, $$isn.dtp, $$isn.did, $$isn.dsr)
-isn.doc.add = $dbadddst(isndb, key, rechead, $$isn.didid, $$isn.dlc, $$isn.dtp, $$isn.did, $$isn.dsr)
+(void) $dbpoint(isndb, key, rechead, $$isn.didid, $$isn.dlc, $$isn.dtp, $$isn.did, $$isn.dsr, isn.template)
+isn.doc.add = $dbadddst(isndb, key, rechead, $$isn.didid, $$isn.dlc, $$isn.dtp, $$isn.did, $$isn.dsr, isn.template)
 end isn.doc.add
 
 
@@ -283,3 +306,5 @@ end txp.get
 '-------------------------------
 %include inc_GetParm
 %include inc_GetOption
+%include inc_uhpOption
+%include inc_uhp

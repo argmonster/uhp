@@ -1,0 +1,85 @@
+library uhp_embedSnap()
+
+_snapid  is x
+_re-render        is x
+
+%global _snapid, _re-render
+
+_varList[]        is x
+_varlistptr       is b
+_vartype[]        is x
+
+%global _varList, _varlistptr, _vartype[]
+
+
+'------------------------------------------------------------------------
+'------------------------------------------------------------------------
+public dynamic function render(args[], vals[]) is x
+args[]   is x
+vals[]   is x
+argproc(args[], vals[])
+if _snapid dp then "l_snapLibMain":sn_viewSnap(_snapid, "bigreport") endif
+end render
+
+'------------------------------------------------------------------------
+'------------------------------------------------------------------------
+public dynamic function argproc(args[], vals[]) is null
+args[]   is x
+vals[]   is x
+arg      is x
+copy[]   is x
+copyptr  is b
+xidx     is x
+idx      is b
+i        is b
+'vartype[] is x
+val      is v
+$clear(_re-render)
+i = 0
+do while i++ < $maxarray(args[], vals[])
+   $parsem($uc(args[i]), 1, "-", arg, xidx)
+   arg = "_" + arg
+   _varlistptr = $find(arg, _varlist[], 1, "F")
+   if _varlistptr = 0 then
+      _varlistptr = $maxarray(_varlist[])
+      do while _varlist[_varlistptr] != arg
+         (void)$getvar(++_varlistptr,,_vartype[_varlistptr],,_varlist[_varlistptr])
+         if _varlist[_varlistptr] !dp then
+            $clear(arg)   'invalid argument
+         endif
+      enddo
+   endif
+   if arg dp then
+      copyptr = $varptr(copy[])
+      (void)$copyvar(_varlistptr, copyptr)
+      if xidx dp then
+         idx = $num(xidx)
+      else
+         $clear(idx)
+      endif
+'      vals[i] = $replace("{", "<", vals[i])
+'      vals[i] = $replace("}", ">", vals[i])
+      if $charx(vals[i],1) = "$" then
+         select $uc(vals[i])
+            case "$TODAY"  vals[i] = $today
+            case "$OPER"   vals[i] = $oper
+            case "$OPERSTAFFID"  vals[i] = $operstaffid
+         endselect
+      endif
+      if copy[idx] != vals[i] then
+         $setvartype(val, _vartype[_varlistptr])
+         val = $cast(vals[i], _vartype[_varlistptr])
+         _re-render = "Y"
+         copy[idx] = val
+'         copy[idx] = vals[i]
+         (void)$copyvar(copyptr, _varlistptr)
+      endif
+   endif
+enddo
+'if _re-render = "Y" then
+'   $clear(_render[])
+'endif
+''rec.set()
+'_d-lib:setDsts(_dstname[])
+ 
+end argproc

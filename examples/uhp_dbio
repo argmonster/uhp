@@ -1,0 +1,52 @@
+start uhp_dbio(parmfile, option, client, retcode)
+parmfile    is x
+option      is x
+client      is x
+retcode     is x
+
+dstname[]   is x
+dstval[]    is x
+
+if parmfile !dp then
+   parmfile = d_template
+endif
+if $charx(parmfile,1) != "/" then
+   string = $SYS + "/PARM/" + parmfile
+   if $checkfile(string) = 0 then
+      getParm(parmfile)
+   else
+      string = d_temp_path + parmfile
+      if $checkfile(stirng) = 0 then
+         parmfile = string
+         getUhpOption(parmfile)
+      else
+         return
+      endif
+   endif
+else
+   if $checkfile(parmfile) = 0 then
+      getUhpOption(parmfile)
+   else
+      return
+   endif
+endif
+
+if parmfile dp then
+   do while 1 = 1
+      uhp(parmfile)
+      select $endbutton
+         case "CANCEL"  return
+         case "SUBMIT"  gosub _save
+      endselect
+   enddo
+else
+   $brmsg("Parmfile or Template Required - Contact MIS",1,"WEC")
+   return
+endif
+
+return
+
+_save:
+   if reportform dp then
+      uhp(reportform)
+goback

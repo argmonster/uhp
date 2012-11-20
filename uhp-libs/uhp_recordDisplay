@@ -12,6 +12,7 @@ _layer         is b
 _db            is b
 _id            is x
 _re-render     is x
+_forceRender   is x
 _render[]      is x
 
 _varlist[]     is x
@@ -24,7 +25,7 @@ _d-lib         is b
 
 %global _regid, _dstHead, _dstlabel, _dstname, _dstvals[], _dstedittype, _dsteditnum
 %global _list, _db, _d-lib, _id, _re-render, _render
-%global _varlist, _varlistptr
+%global _varlist, _varlistptr, _forceRender
 
 on load do:
    (void)$loadlib(_d-lib, "lib_DST")
@@ -37,8 +38,9 @@ i           is b
 j           is b
 string       is x
 'temp[]      is x
+t           is x
 argproc(args[],vals[])
-if _re-render = "Y" then
+if _re-render = "Y" or _forceRender = "Y" then
    rec.get()
    rec.read()
    $clear(_render[])
@@ -60,7 +62,10 @@ if _render[] !dp then
       string = "<tr id='" + _id + "-" + i + "' class='recordDetail'>"
       j = 0
       do while j++ < $maxarray(_dstvals[i])
-         string += "<td id='" + _id + "-" + i + "-" + j + "'><literal value='" + _dstvals[i,j] + "' edittype='" + _dstedittype[j] + "' editnum='" + _dsteditnum[j] + "' /></td>"
+         if $geteditmsg(_dstvals[i,j], _dstedittype[j], t) > 0 then
+            t = _dstvals[i,j]
+         endif
+         string += "<td id='" + _id + "-" + i + "-" + j + "'>" + t + "</td>"
       enddo
       string += "</tr>"
       (void)$arrpush(_render[], string)
@@ -133,6 +138,7 @@ end rec.get
 public dynamic function rec.read() is b
 rc       is b
 i        is b
+$clear(_dstvals[])
 rc = _d-lib:read(_regid,_dstname[])
 do while rc < 2
    _dstvals[++i] = _d-lib:dst(_dstname[])[]

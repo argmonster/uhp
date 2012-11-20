@@ -1,7 +1,7 @@
 'uhp include file
-dynamic function uhp_Option(uhp.path, uhp.parm) is b
+dynamic function uhp_Option(uhp.path,uhp.parm[]) is b
 uhp.path       is x
-uhp.parm       is x
+uhp.parm[,]    is v
 openptr        is b
 tagname        is x
 tagvalue       is x
@@ -17,18 +17,28 @@ idx            is b
 xidx           is x
 idx2           is b
 xidx2          is x
+if uhp.path !dp then return endif
+$allowupdate(uhp.parm[])
 'perl option:
 if $tempfile(uhp.temp) > 0 then
    uhp_option = 11
 endif
-if uhp.parm dp then
-    perlcmd = "perl -ne 'm/<" + uhp.parm + ">(.*)<\/" + uhp.parm + "/i && print $1;' " + uhp.path
-    if $unix(perlcmd,opts[]) > 0 then
-      uhp_option = 55
-   endif
+if uhp.parm[] dp then
+   $setvarname(uhp.parm[], uhp.parm[1,1])
+   $setvartype(uhp.parm[], "X")
+endif
+if $varname(uhp.parm[]) != "UHP.PARM" then
+    perlcmd = "perl -ne 'm/<(" + $varname(uhp.parm[]) + ".*?)>(.*)<\/$1.*?>/i && print $1.chr(124).$2.chr(10);' " + uhp.path
+    'perlcmd = "perl -ne 'm/<(" + uhp.parm + ".*)>(.*)<\/" + uhp.parm + "/i && print $1;' " + uhp.path
+'    idx = $unix(perlcmd,opts[],,tagname)
+'    tagname = tagname
+'    if idx > 0 then
+'      uhp_option = 55
+'   endif
    'perlcmd = "cat $1 | perl -e 'undef $/; while(<>){m/<" + uhp.parm + ">(.*)<\/" + uhp.parm + "/i && print " + uhp.parm + ".chr(124).$1.chr(10)};'"
 else
    perlcmd = "cat $1 | perl -e 'undef $/; while(<>){m/<parm>(.*)<\/parm/s && print $1.chr(10)};' | perl -ne 'm/<(.*)>(.*)<\/\1/ && print $1.chr(124).$2.chr(10)'"
+endif
    if $putfile(perlcmd, uhp.temp) > 0 then
       uhp_option = 22
    endif
@@ -40,7 +50,6 @@ else
    if $unix(unixcmd, opts[]) > 0 then
       uhp_option = 33
    endif
-endif
 openptr = 0
 do while openptr++ < $maxarray(opts[])
    $parsem(opts[openptr],1,"|",tagname, tagvalue)
@@ -67,6 +76,7 @@ do while openptr++ < $maxarray(opts[])
    copyptr = $varptr(copy[])
    (void)$copyvar(varptr, copyptr)
    copy[idx,idx2] = tagvalue
+   uhp.parm[idx,idx2] = tagvalue
    (void)$copyvar(copyptr, varptr)
 enddo   
 end uhp_option

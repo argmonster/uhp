@@ -1,0 +1,50 @@
+%define d_formpath = "/c0/test/"
+
+start uhp_viewer(parmfile, option, regid, retcode)
+parmfile    is x
+option      is x
+regid       is x
+retcode     is b
+
+form        is x
+string      is x
+
+if $charx(parmfile,1) != "/" then
+   string = $sysname + "/PARM/" + parmfile
+   if $checkfile(string) = 0 then
+      getparm(parmfile)
+   else
+      parmfile = d_formpath + parmfile
+      if $checkfile(parmfile) = 0 then
+         uhp_Option(parmfile)
+      else
+         retcode = 99
+         return
+      endif
+   endif
+else
+   if $checkfile(parmfile) = 0 then
+      uhp_Option(parmfile)
+   else
+      retcode = 99
+      return
+   endif
+endif
+getoption(option)
+if form !dp then
+   form = parmfile
+endif
+
+do while 1 = 1
+   uhp(form)
+   select $endbutton
+      case "SUBMIT"  'refresh'
+      case "CANCEL"  return
+   endselect
+enddo
+
+end uhp_viewer
+%include inc_uhp
+%include inc_GetParm
+%include inc_GetOption
+%include inc_uhpOption

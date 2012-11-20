@@ -67,8 +67,10 @@ on load do:
    _masterDsts[]   is x
    _masterValues[] is x
    _masterEffdate[]  is d
+   _masterHead[]     is x
+   _masterDesc[]     is x
    
-   %global _masterList, _masterDsts[], _masterValues[], _masterEffdate[]
+   %global _masterList, _masterDsts[], _masterValues[], _masterEffdate[], _masterHead[], _masterDesc[]
    
    _readList      is dstlist
    _readDsts[]    is x
@@ -91,7 +93,11 @@ return
 '-------------------------------------------------
 public dynamic function setDsts(dsts[]) is null
 dsts[]   is x
-_masterDsts[] = check(dsts[])[]
+head[]   is x
+desc[]   is x
+_masterDsts[] = check(dsts[],head[],desc[])[]
+_masterHead[] = head[]
+_masterDesc[] = desc[]
 _masterCnt = $maxarray(_masterDsts[])
 list()
 end setDsts
@@ -100,19 +106,22 @@ end setDsts
 public dynamic function setReg(register) is null
 register is x
 _masterReg = register
-(void)$dbstart(_masterDB, _masterReg)
+'(void)$dbstart(_masterDB, _masterReg)
 end setReg
 
 
 '-------------------------------------------------
-public dynamic function check(dsts[])[] is x
+public dynamic function check(dsts[],recname[],desc[])[] is x
 dsts[]         is x
+recname[]      is x
+desc[]         is x
 i              is b
 j              is b
 temp[]         is x
 dstInfo[]      is x
 '$allowupdate(dsts[])
-$clear(temp[])
+$allowupdate(recname[], desc[])
+$clear(temp[],recname[],desc[])
 (void)$sortu(dsts[],"D")
 i = 0
 do while i++ < $maxarray(dsts[])
@@ -123,13 +132,18 @@ do while i++ < $maxarray(dsts[])
          j = $find(dstInfo[16], temp[], 1, "F")
          if j = 0 then
             'add the records head if it is missing
-            (void)$arrPush(temp[], dstInfo[16])
+            (void)$arrPush(temp[], `$uc(dstInfo[16])`)
             j = $maxarray(temp[])
          endif
-         (void)$arrInsert(temp[++j], `$uc(dsts[i])`)
+         j++
+'         (void)$arrInsert(temp[++j], `$uc(dsts[i])`)
       else
-         (void)$arrInsert(temp[1], `$uc(dsts[i])`)
+         j = 1
+'         (void)$arrInsert(temp[1], `$uc(dsts[i])`)
       endif
+         (void)$arrInsert(temp[j], `$uc(dsts[i])`)
+         (void)$arrInsert(recname[j], `$uc(dstInfo[16])`)
+         (void)$arrInsert(desc[j], dstInfo[3])
    else
       'allow user to remap??
 '      $clear(dstlist[i])
@@ -234,10 +248,12 @@ do while rc < 2
    $clear(match)
    i = 0
    do while i++ < $maxarray(dst-idx[])
-      idx = dst-idx[i]
-      if _masterValues[idx] != uid-value[i] then
-         match = "N"
-         i = $maxarray(dst-idx[])
+      if dst-idx[i] dp then
+         idx = dst-idx[i]
+         if _masterValues[idx] != uid-value[i] then
+            match = "N"
+            i = $maxarray(dst-idx[])
+         endif
       endif
    enddo
    if match = "N" then
@@ -297,26 +313,111 @@ dstname[]   is v
 'myVal       is x
 i           is b
 j           is b
+varname     is x
 
 'if $argusage(dstname[]) = 3 then
 '   dst[] = _masterValues[]
 '   return
 'endif
-i = $find(`$varname(dstname[])`, _masterDsts[],1,"F")
+varname = $varname(dstname[])
+varname = $uc(varname)
+i = $find(varname, _masterDsts[],1,"F")
 if i > 0 then 
    dst[1] = _masterValues[i] 
 else
-   j = 0
-   do while j++ < $maxarray(dstname[])
-      i = $find($uc(dstname[j]), _masterDSTs[], 1, "F")
-      if i > 0 then
-         if _masterValues[i] dp then
-            dst[j] = _masterValues[i]
-         endif
-      endif
-   enddo
+    listinfo(dstname[],dst[])
+'   j = 0
+'   do while j++ < $maxarray(dstname[])
+'      i = $find($uc(dstname[j]), _masterDSTs[], 1, "F")
+'      if i > 0 then
+'         if _masterValues[i] dp then
+'            dst[j] = _masterValues[i]
+'         endif
+'      endif
+'   enddo
 endif
 'i = $find(dstname[1], _masterDSTs[], 1, "F")
 'if i > 0 then myVal = _masterValues[i] endif
 'dst[1] = myVal
 end dst
+
+
+'-------------------------------------------------
+public dynamic function effd(dstname[])[] is x
+dstname[]   is v
+'myVal       is x
+i           is b
+j           is b
+varname     is x
+
+varname = $varname(dstname[])
+varname = $uc(varname)
+i = $find(varname, _masterDsts[],1,"F")
+if i > 0 then 
+   effd[1] = _masterEffdate[i] 
+else
+   listinfo(dstname[],,effd[])
+'   j = 0
+'   do while j++ < $maxarray(dstname[])
+'      i = $find($uc(dstname[j]), _masterDSTs[], 1, "F")
+'      if i > 0 then
+'         if _masterEffdate[i] dp then
+'            effd[j] = _masterEffdate[i]
+'         endif
+'      endif
+'   enddo
+endif
+end effd
+
+
+'-------------------------------------------------
+public dynamic function head(dstname[])[] is x
+dstname[]   is v
+'myVal       is x
+i           is b
+j           is b
+varname     is x
+
+varname = $varname(dstname[])
+varname = $uc(varname)
+i = $find(varname, _masterDsts[],1,"F")
+if i > 0 then 
+   head[1] = _masterHead[i] 
+else
+    listinfo(dstname[],,,head[])
+'   j = 0
+'   do while j++ < $maxarray(dstname[])
+'      i = $find($uc(dstname[j]), _masterDSTs[], 1, "F")
+'      if i > 0 then
+'         if _masterHead[i] dp then
+'            head[j] = _masterHead[i]
+'         endif
+'      endif
+'   enddo
+endif
+end head
+
+'---------------------------------------------------
+public dynamic function listinfo(name[], valu[], effd[], head[], desc[]) is null
+name[]      is x
+valu[]      is x
+effd[]      is d
+head[]      is x
+desc[]      is x
+j           is b
+i           is b
+$allowupdate(valu[], effd[], head[],desc[])
+j = 0
+do while j++ < $maxarray(name[])
+   i = $find($uc(name[j]), _masterDSTs[], 1, "F")
+   if i > 0 then
+      if _masterValues[i] dp then
+         valu[j] = _masterValues[i]
+         effd[j] = _masterEffdate[i]
+         head[j] = _masterHead[i]
+         desc[j] = _masterDesc[i]
+      endif
+   endif
+enddo
+
+end listinfo

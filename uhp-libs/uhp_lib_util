@@ -1,0 +1,75 @@
+%define d_formPath "/c0/forms/"
+
+start uhp_lib_util(parmfile, option, regid, retcode)
+parmfile    is x
+option      is x
+regid       is x
+retcode     is b
+
+template    is x
+recinfo[]   is x
+l_handle[]  is b
+l_handle.regid is x
+l_b[,]      is x
+temp-lib    is b
+
+string      is x
+%include inc_sysLibDef
+gosub _INIT
+
+do while 1 = 1
+   $clear(l_b[])
+   uhp(template)
+   select $endbutton
+      case "CANCEL"  return
+      case "SUBMIT"  'refresh
+      case other     if $find("Y", l_b[], 1, "F") > 0 then
+                        temp-lib = $row_num
+                        temp-lib:submit($col_num,l_b[$row_num],recinfo[])
+                     else
+                        return
+                     endif
+
+   endselect
+enddo
+
+return
+
+_INIT:
+   if $charx(parmfile,1) != "/" then
+      'parmfile?
+      string = $sysname + "/PARM/" + parmfile
+      if $checkfile(string) = 0 then
+         getParm(string)
+      else
+         parmfile = d_formPath + parmfile
+         if $checkfile(parmfile) = 0 then
+            Uhp_Option(parmfile)
+            if template !dp then
+               template = parmfile
+            endif
+         endif
+      endif
+   else
+      if $checkfile(parmfile) = 0 then
+         Uhp_Option(parmfile)
+         if template !dp then
+            template = parmfile
+         endif
+      endif
+   endif
+   'check option
+   if option dp then getoption(option) endif
+   'forget it if there is no template
+   if template !dp then return endif
+   
+   if regid !dp then return endif      'get regid??
+   l_handle.regid = regid
+goback  
+   
+end uhp_lib_util
+
+%include inc_uhp
+%include inc_GetParm
+%include inc_uhpOption
+%include inc_GetOption

@@ -1,0 +1,19 @@
+start uhp_harness(template, option, regid)
+
+template is x
+option   is x
+regid   is x
+%include inc_sysLibDef
+
+do while 1 = 1
+   uhp(template)
+   select $endbutton
+      case "SUBMIT" 'refresh
+      case "CANCEL" return
+      case other    return
+   endselect
+enddo
+
+end uhp_harness
+
+%include inc_uhp

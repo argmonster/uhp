@@ -10,28 +10,11 @@ _dxDate        is x
 _dateVal       is x
 
 _axis[,]       is x
-'_axis1[]       is x
-'_axis2[]       is x
-'_axis3[]       is x
-'_axis4[]       is x
-'_axis5[]       is x
-'_axis6[]       is x
 
 _axVal[,]      is x
-'_a1val[]       is x
-'_a2val[]       is x
-'_a3val[]       is x
-'_a4val[]       is x
-'_a5val[]       is x
-'_a6val[]       is x
 
 _axEdit[]       is x
-'_a1edit[]      is x
-'_a2edit[]      is x
-'_a3edit[]      is x
-'_a4edit[]      is x
-'_a5edit[]      is x
-'_a6edit[]      is x
+_axShowCode[]  is x
 
 _a1def         is x
 _a2def         is x
@@ -41,6 +24,7 @@ _a5def         is x
 _a6def         is x
 
 _axLabel[]     is x
+_axColLabel[]  is x
 _dstlist[]     is x
 _dstname[]     is x
 _dstedit[]     is x
@@ -49,24 +33,33 @@ _list          is dstlist
 _layer         is b
 _db            is b
 _id            is x
+_forceRead     is x
 
 _out[]         is x
+_re-render     is x
+
+_varlistptr    is b  
+_varlist[]     is x
+_vartype[]     is x
 
 _d-lib      is b
 
-%global _axis[], _axval[], _axedit[], _axLabel[]
+%global _axis[], _axval[], _axedit[], _axLabel[], _axColLabel[]
 %global _axis1, _axis2, _axis3, _axis4, _axis5, _axis6
 %global _a1val, _a2val, _a3val, _a4val, _a5val, _a6val
 %global _a1def, _a2def, _a3def, _a4def, _a5def, _a6def
 %global _a1edit, _a2edit, _a3edit, _a4edit, _a5edit, _a6edit
 %global _stafflabel, _datelabel, _dxstaff, _dxdate, _staffval, _dateval
 %global _regid, _dstHead, _dstlist[], _dstname, _dstvals[], _dstedit
-%global _list, _db, _d-lib, _id, _out
+%global _list, _db, _d-lib, _id, _out, _re-render, _forceRead
+%global _varlistptr, _varlist, _vartype, _axShowCode
 
 on load do:
    (void)$loadlib(_d-lib, "lib_DST")
 return
 
+'----------------------------------------------------
+'----------------------------------------------------
 public dynamic function render(args[], vals[])[] is x
 args[]      is x
 vals[]      is x
@@ -75,8 +68,11 @@ j           is b
 temp        is x
 edittype    is x
 xno         is x
+xhead       is h
+xdst        is x
 editno      is b
 renderval   is x
+k[]         is x
    argproc(args[],vals[])
 if _out[] !dp then
    dx.build()
@@ -86,76 +82,135 @@ if _out[] !dp then
            + "<div id='dxStaff'>" + _staffLabel + _staffVal + "</div>"
            + "<div id='dxDate'>" + _DateLabel + _dateval + "</div>"
            + "</div>" 
-   _out[2] = "<table id='dxTable' class='dxTable'><tr class='dxHead'><td></td>"
+   _out[2] = "<table id='dxTable' class='dxTable tight'><tr class='dxHead'><td></td>"
    i = 0
    do while i++ < $maxcolumn(_axis[])
-      _out[2] += "<td>" + i + "</td>"
+'      if $findnextent(_axVal[i],j) > 0 then
+      if _axVal[i] dp then
+         if _axColLabel[i] !dp then 
+            temp = $castx(i)
+         else
+            temp = _axColLabel[i]
+         endif
+         _out[2] += "<td>" + temp + "</td>"
+      endif
    enddo
    _out[2] += "</tr>"
    i = 0
-   do while i++ < $maxarray(_axis[])
-      if _axis[i] dp then
-         temp = "<tr id='dxAxis-" + i + "' class='dxDetail'><td>" + _axLabel[i] + "</td>"
-         if _axEdit[i] dp then
+   do while i++ < $maxarray(_axVal[])
+      k[] = _axVal[i]
+      if k[] dp then
+'      if _axVal[i] dp then
+         temp = "<tr id='dxAxis-" + i + "' class='dxDetail'><td class='dxLabel'>" + _axLabel[i] + "</td>"
+         'if _axEdit[i] dp then
+            $clear(edittype,xno)
             $parsem(_axEdit[i], 1, "-", edittype, xno)
             editno = $num(xno)
-         endif
+         'endif
          j = 0
-         do while j++ < $maxarray(_axis[i])
+         do while j++ < $maxarray(_axVal[i])
             select $uc(edittype)
+               case "DST"  (void)$dstinfo(xno, k[])
+                           editno = $casti(k[4])
+                           $setvarname(xdst,xno)
+                           if k[9] dp then
+                              $setvarname(xhead, k[16])
+                              (void)$dbread(editno, _axVal[i,j], xhead, xdst)
+                              '(void)$dbalpha(editno, _axVal[i,j], xno)
+                           else
+                              (void)$dbread(editno, _axVal[i,j], xdst)
+                           endif
+                           renderval = xdst
                case "DB"   (void)$dbalpha(editno,_axVal[i,j], renderval)
                case "DCT"  renderval = $dct(editno, _axVal[i,j])
                case other  renderval = _axVal[i,j]
             endselect
+            if _axShowCode[i] = "Y" and _axVal[i,j] dp then
+               renderval = "(" + _axval[i,j] + ") " + renderval
+            endif
+
             temp += "<td id='dx-" + i + "-" + j + "'>" + renderval + "</td>"
          enddo
          temp += "</tr>"
          (void)$arrPush(_out[], temp)
       endif
+      $clear(k[])
    enddo
    (void)$arrPush(_out[], "</table>")
 endif
 render[] = _out[]
 end render
 
+
+'----------------------------------------------------
+'----------------------------------------------------
 public dynamic function argproc(args[], vals[]) is null
 args[]   is x
 vals[]   is x
 arg      is x
-x1       is x
-x2       is x
-x        is b
-y        is b
+copy[,]   is x
+copyptr  is b
+xidx     is x
+xidx2    is x
+idx      is b
+idx2     is b
 i        is b
+'vartype[] is x
+val      is v
+$clear(_re-render)
 i = 0
 do while i++ < $maxarray(args[], vals[])
-   $parsem(args[i], 1, "-", arg, x1, x2)
-   select $uc(arg)
-      case  "ID"        _id = vals[i]
-      case  "REGID"     if _regid != vals[i] then
-                           _regid = vals[i]
-                        endif
-      case  "DXSTAFF"   _dxStaff = $uc(vals[i])
-      case  "STAFFLABEL"   _stafflabel = vals[i]
-      case  "DATELABEL"    _dateLabel = vals[i]
-      case  "DXDATE"    _dxDate = $uc(vals[i])
-      case  "AXIS"      x = $num(x1)
-                        y = $num(x2)
-                        if x > 0 and y > 0 then
-                           _axis[x,y] = vals[i]
-                        endif
-      case "DXEDIT"     x = $num(x1)
-                        'y = $num(x2)
-                        if x > 0 then 'and y > 0 then
-                           _axEdit[x] = vals[i]
-                        endif
-      case  "AXLABEL"   x = $num(x1)
-                        _axlabel[x] = vals[i]
-   endselect
+   $parsem($uc(args[i]), 1, "-", arg, xidx, xidx2)
+   arg = "_" + arg
+   _varlistptr = $find(arg, _varlist[], 1, "F")
+   if _varlistptr = 0 then
+      _varlistptr = $maxarray(_varlist[])
+      do while _varlist[_varlistptr] != arg
+         (void)$getvar(++_varlistptr,,_vartype[_varlistptr],,_varlist[_varlistptr])
+         if _varlist[_varlistptr] !dp then
+            $clear(arg)   'invalid argument
+         endif
+      enddo
+   endif
+   if arg dp then
+      copyptr = $varptr(copy[])
+      (void)$copyvar(_varlistptr, copyptr)
+      if xidx dp and xidx2 !dp then
+         idx = 1
+         idx2 = $num(xidx)
+      elseif xidx2 dp and xidx !dp then
+         idx = $num(xidx2)
+         $clear(idx2)
+      else
+         idx = $num(xidx)
+         idx2 = $num(xidx2)
+      endif
+      vals[i] = $replace("{", "<", vals[i])
+      vals[i] = $replace("}", ">", vals[i])
+      if $charx(vals[i],1) = "$" then
+         select $uc(vals[i])
+            case "$TODAY"  vals[i] = $today
+            case "$OPER"   vals[i] = $oper
+            case "$OPERSTAFFID"  vals[i] = $operstaffid
+         endselect
+      endif
+      if copy[idx,idx2] != vals[i] then
+         $setvartype(val, _vartype[_varlistptr])
+         val = $cast(vals[i], _vartype[_varlistptr])
+         _re-render = "Y"
+         copy[idx,idx2] = val
+'         copy[idx] = vals[i]
+         (void)$copyvar(copyptr, _varlistptr)
+      endif
+   endif
 enddo
-$clear(_out[])
+if _re-render = "Y" or _forceRead = "Y" then
+   $clear(_out[])
+endif
 end argproc
 
+'----------------------------------------------------
+'----------------------------------------------------
 public dynamic function dx.build() is null
 i     is b
 $clear(_dstlist[], _list)
@@ -167,6 +222,8 @@ do while i++ < $maxarray(_axis[])
 enddo
 end dx.build
 
+'----------------------------------------------------
+'----------------------------------------------------
 public dynamic function dx.read() is null
 i        is b
 temp[]   is x

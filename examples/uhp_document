@@ -1,0 +1,100 @@
+%define d_formpath "/c0/forms/"
+
+
+start uhp_document(parmfile, option, regid, retcode)
+parmfile    is x
+option      is x
+regid       is x
+retcode     is x
+
+client[]    is x
+objinfo[,]  is x
+txpinfo[,]  is x
+gennote     is x
+
+dstload[,]
+
+formpath    is x
+subform     is x
+u-note-lib[]   is b
+
+b_section[] is x
+section_act[]  is x
+section_val[]  is x
+
+temp[]         is x
+t              is x
+i              is b
+
+%include inc_sysLibDef
+
+gosub _INIT
+gosub _FORM
+return
+
+_FORM:
+   do while 1 = 1
+      uhp(formpath)
+      select $endbutton
+         case "CANCEL"  gosub _EXIT
+         case "SUBMIT"  gosub _SAVE
+                        gosub _EXIT
+         case other     'gosub _EXIT
+            i = $find("Y", b_section[],1,"F")
+            if i > 0 then
+               $parsem(section_act[i],1,":",temp[])
+               select temp[1]
+                  case "FORM"    subform = temp[2]
+                                 gosub _SUBFORM
+                  case "SCRIPT"  call temp[2](temp[3],temp[4],temp[5],temp[6])
+               endselect
+            endif
+      endselect
+   enddo
+goback
+
+_SUBFORM:
+   uhp(subform)
+   select $endbutton
+      case "CANCEL"  'do nothing
+      case "SUBMIT"  objinfo[i] = section_val[]
+   endselect
+goback
+
+_EXIT:
+   return
+goback
+
+_SAVE:
+   'nothing yet
+goback
+
+_INIT:
+   if $charx(parmfile,1) != "/" then
+      t = $sysname + "/PARM/" + parmfile
+      if $checkfile(t) = 0 then
+         getparm(parmfile)
+      else
+         parmfile = d_formpath + parmfile
+         if $checkfile(parmfile) = 0 then
+            uhp_Option(parmfile)
+            if formpath !dp then
+               formpath = parmfile
+            endif
+         endif
+      endif
+   else
+      uhp_Option(parmfile)
+      if formpath !dp then
+         formpath = parmfile
+      endif
+   endif
+   getoption(option)
+goback
+
+end uhp_document
+
+%include inc_GetParm
+%include inc_GetOption
+%include inc_uhpOption
+%include inc_uhp

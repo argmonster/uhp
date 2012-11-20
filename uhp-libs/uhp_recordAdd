@@ -38,13 +38,14 @@ _d-lib         is b
 _lock[]        is x
 _lockptr       is b
 _save          is b
+_writeOnFinal  is x
 
 %global _regid, _dstHead, _dstname[], _dstlabel, _dstvals[], _dstedit, _ui[], _render[],_re-render
 %global _list, _db, _d-lib, _id, _dstDef, _dstedittype, _dsteditnum
 %global _varlist, _varlistptr, _vartype
 %global _varname, _varptr, _varptr2, _btn, _uhp-end
 %global _addptr, _finptr, _rmptr, _addlabel, _rmlabel, _finlabel
-%global _b_name, _lock[], _lockedonly, _lockptr, _disponly, _save, _max
+%global _b_name, _lock[], _lockedonly, _lockptr, _disponly, _save, _max, _writeOnFinal
 
 on load do:
    _addptr = 1
@@ -58,19 +59,23 @@ on load do:
 return
 
 on unload do:
-   i is b
-   if _save = "Y"
-'            if _d-lib !dp then
-               (void)$loadlib(_d-lib, "lib_DST")
-'            endif
-      i = 0
-      do while i++ < $maxarray(_dstvals[])
-         if _dstvals[i] dp then
-            _d-lib:add(_regid, _dstname[], _dstvals[i])
-            _lock[i] = "Y"
-         endif
-      enddo
+   (void)$loadlib(_d-lib,"lib_DST")
+   if _writeOnFinal != "Y" then
+      writeFinal()
    endif
+'   i is b
+'   if _save = "Y"
+''            if _d-lib !dp then
+'               (void)$loadlib(_d-lib, "lib_DST")
+''            endif
+'      i = 0
+'      do while i++ < $maxarray(_dstvals[])
+'         if _dstvals[i] dp then
+'            _d-lib:add(_regid, _dstname[], _dstvals[i])
+'            _lock[i] = "Y"
+'         endif
+'      enddo
+'   endif
 return
 
 public dynamic function render(args[], vals[], vars[], set-vals[])[] is x
@@ -82,6 +87,7 @@ i           is b
 j           is b
 string      is x
 'temp[]      is x
+temp        is x
 fake[]      is x
 ptr         is b
 ptr2        is b
@@ -119,7 +125,7 @@ if _render[] !dp then
          string =  "<tr id='" + _id + "-" + i + "' class='recordDetail'><td id='action-" + i + "'>"
    '      if _lock[i] != "Y" and $uc(_lockedonly) != "Y" then
         if _disponly != "Y" then
-            string += "<input type='submit' uhp='" + _btn + "' value='" + _rmlabel + "' idx='" + $mylibhandle + "' "
+            string += "<$input type='submit' uhp='" + _btn + "' value='" + _rmlabel + "' idx='" + $mylibhandle + "' "
                    + "idx2='" + temp-rm + "' classsel='link' classnotsel='link' />"
          endif
          string += "</td>"
@@ -133,11 +139,15 @@ if _render[] !dp then
             endif
    '         if _lock[i] != "Y" and $uc(_lockedonly) != "Y" then
             if _disponly = "Y" then
-               string += "<literal value='" + _varname + "' "
-               if _dstedittype[j] dp and _dsteditnum[j] dp then
-                  string += "edittype='" + _dstedittype[j] + "' editnum='" + _dsteditnum[j] + "' "
+               if $geteditmsg(_dstvals[i,j], _dstedittype[j], temp) > 0 then
+                  temp = _dstvals[i,j]
                endif
-                string += "idx='" + ptr + "' idx2='" + ptr2 + "' />"
+               string += temp
+'               string += "<$literal value='" + _varname + "' "
+'               if _dstedittype[j] dp and _dsteditnum[j] dp then
+'                  string += "edittype='" + _dstedittype[j] + "' editnum='" + _dsteditnum[j] + "' "
+'               endif
+'                string += "idx='" + ptr + "' idx2='" + ptr2 + "' />"
             else
                string +=  "<" + _ui[j] + " uhp='" + _varname + "' " + "id='" + $replace(" ","_",_dstlabel[j]) + "-" + i + "' "
                string += "idx='" + ptr + "' idx2='" + ptr2 + "' />"
@@ -146,7 +156,7 @@ if _render[] !dp then
                   (void)$arrPush(set-vals[], _dstdef[j])
                endif
                if _dstedit[j] = "Y" then
-                  string += "<br /><varedit uhp='" + _varname + "' idx='" + ptr + "' idx2='" + ptr2 + "' />"
+                  string += "<br /><$varedit uhp='" + _varname + "' idx='" + ptr + "' idx2='" + ptr2 + "' />"
                endif
             endif
             string += "</td>"
@@ -165,10 +175,10 @@ if _render[] !dp then
       string = "</table>"
    endif
    if $uc(_disponly) != "Y" then
-      string += "<div id='recFoot'><input type='submit' uhp='" + _btn 
+      string += "<div id='recFoot'><$input type='submit' uhp='" + _btn 
           + "' value='" + _addlabel + "' idx='" + $mylibhandle + "' " + "idx2='" + _addptr + "' "
           + "classsel='link' classnotsel='link' />"
-          + "<input type='submit' uhp='" + _btn 
+          + "<$input type='submit' uhp='" + _btn 
           + "' value='" + _finlabel + "' idx='" + $mylibhandle + "' " + "idx2='" + _finptr + "' "
           + "classsel='link' classnotsel='link' /></div>"
    endif
@@ -204,6 +214,9 @@ select b_ptr
                _max = j + 1
 
    case 2      gosub S_UPDATE    'finalize button
+               if _writeOnFinal = "Y" then
+                  writeFinal()
+               endif
                'write the orders
 '               i = 0
 '               do while i++ < $maxarray(_dstvals[])
@@ -328,3 +341,18 @@ end argproc
 '_d-lib:setDsts(_dstname[])
 'end rec.set
 
+public dynamic function writeFinal() is null
+   i is b
+   if _save = "Y"
+'            if _d-lib !dp then
+'               (void)$loadlib(_d-lib, "lib_DST")
+'            endif
+      i = 0
+      do while i++ < $maxarray(_dstvals[])
+         if _dstvals[i] dp then
+            _d-lib:add(_regid, _dstname[], _dstvals[i])
+            _lock[i] = "Y"
+         endif
+      enddo
+   endif
+end writeFinal

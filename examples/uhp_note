@@ -15,6 +15,8 @@ mallet_note is x
 baker_note  is x
 '***************************
 
+version     is x
+
 ntevent     is x
 matchdur    is x
 days_to_enter  is x
@@ -119,6 +121,8 @@ reportTab   is x
 'script call variables
 b_script[]  is x
 script[]    is x
+scriptparm[]   is x
+scriptopt[] is x
 
 'library variables
 u-note-lib[]   is x
@@ -134,6 +138,8 @@ grpnote     is x
 grpfill     is x
 notetype    is x
 ntchecklvl[,]   is x
+
+review[]    is x
 
 'draft vars
 l_draft[]   is x
@@ -211,7 +217,7 @@ do while 1 = 1
    gosub _PREFORM
 
    'UHP::
-   rc = uhp(mainform[t_ptr])
+   rc = uhp(mainform[t_ptr],version)
    if rc > 0
       $brmsg($fmt(rc, "Problem with Template: 99"),1,"WEC","UHP Error")
    endif
@@ -263,7 +269,7 @@ do while 1 = 1
                   else
                      $clear(string)
                   endif
-                  call script[i] (string, option, regid, retcode)
+                  call script[i] (scriptparm[i], scriptopt[i], regid, retcode)
                endif
                i = $find("Y", b_dbx[], 1, "F")
                if i > 0 then
@@ -291,6 +297,8 @@ do while 1 = 1
       gosub _VALIDATE
       if err[] !dp then
          gosub _SAVE
+'         draft_handle:dr_deleteDraft(Regid, ,$oper,$scriptid,Suffix)
+'         return
       endif
    endif
 enddo
@@ -307,13 +315,19 @@ _PREFORM:
       do while i++ < $maxarray(client[])
          if client[i] != regid then
             (void)$dbalpha(clientdb, client[i], string)
-            string = "<h6><a href='#'><input type='submit' uhp='" + $varname(b_rmclt[]) + "' idx='" + i + "' value='[x]' classsel='link' classnotsel='link' />(" + client[i] + ") " + string + "</a>"
+            string = "<h6><a href='#'>"
+            if version < 4 then string += "<" else string += "<$" endif
+            string += "input type='submit' uhp='" + $varname(b_rmclt[]) + "' idx='" + i + "' value='[x]' classsel='link' classnotsel='link' />(" + client[i] + ") " + string + "</a>"
             if err[i] dp then
                string += "<span class='error'> *Error</span>"
             endif
             string += "</h6><div><span class='error'>" + err[i] + "</span><br />"
-            string += "Start Time: <input type='text' id='" + $varname(e.start[]) + "-" + i + "' uhp='" + $varname(e.start[]) + "' idx='" + i + "' edit='TIME' />"
-            string += "Duration: <input type='text' id='" + $varname(e.dur[]) + "-" + i + "' uhp='" + $varname(e.dur[]) + "' idx='" + i + "' edit='DUR' /> <br />"
+            string += "Start Time: "
+            if version < 4 then string += "<" else string += "<$" endif
+            string += "input type='text' id='" + $varname(e.start[]) + "-" + i + "' uhp='" + $varname(e.start[]) + "' idx='" + i + "' edit='TIME' />"
+            string += "Duration: "
+            if version < 4 then string += "<" else string += "<$" endif
+            string += "input type='text' id='" + $varname(e.dur[]) + "-" + i + "' uhp='" + $varname(e.dur[]) + "' idx='" + i + "' edit='DUR' /> <br />"
             string += l_txp[i]
             rc = 0
             do while rc++ < $maxarray(grpinfo[])
@@ -345,11 +359,13 @@ _PREFORM:
          if t_title[i] !dp then
             string = "Form " + i
          endif
-         l_tab += "<input type='submit' uhp='" + $varname(b_tab[]) + "' idx='" + i + "' value='" + string + "' "
+         if version < 4 then l_tab += "<" else l_tab += "<$" endif
+         l_tab += "input type='submit' uhp='" + $varname(b_tab[]) + "' idx='" + i + "' value='" + string + "' "
                + "classsel='" + class + "' classnotsel='" + class + "' />"
       enddo
       if reportTab dp then
-         l_tab += "<input type='submit' uhp='" + $varname(b_tab[]) + "' idx='" + i + "' value='" + reportTab
+         if version < 4 then l_tab += "<" else l_tab += "<$" endif
+         l_tab += "input type='submit' uhp='" + $varname(b_tab[]) + "' idx='" + i + "' value='" + reportTab
                + "' classsel='st_ina' classnotsel='st_ina' />"
       endif
    endif
@@ -407,14 +423,6 @@ _VALIDATE:
       usr-lib:check_pne_rules(notetype, e.date, e.dur[1], e.cl.dur[1], e.start[1], string, e.ru,
                       temp[], regid, e.loc, e.recip, e.att, "Y")
       e.usr.i2 = string
-'      if sacFlip = "Y" then
-'         if string != e.ser then
-'            e.usr.i2 = e.ser
-'            e.ser = string
-'         endif
-'      else
-'         e.ser = string
-'      endif
       if temp[] dp then
          (void)$putds(temp[], string, "|")
          err[1] += "<li>" + $replace("|", "</li><li>", string) + "</li>"
@@ -516,6 +524,7 @@ _SAVE:
                                  gosub _WRITEDST
                                  gosub _WRITEDBX
                                  gosub _SCHEDULE
+                                 gosub _TODO
                                  draft_handle:dr_deleteDraft(Regid, ,$oper,$scriptid,Suffix)
 '                                 $unloadlib()
                                  return
@@ -524,12 +533,12 @@ _SAVE:
          endif
       endif
    enddo
-
 goback
+
 _WRITEDST:
    if dsts[] dp then
-      i = 0
-      do while i++ < $maxarray(client[])
+'      i = 0
+'      do while i++ < $maxarray(client[])
          if dst-lib[i] dp then
             temp-lib = dst-lib[i]
          else
@@ -544,7 +553,7 @@ _WRITEDST:
             endif
          enddo
          temp-lib:add()
-      enddo
+'      enddo
    endif
 goback
 
@@ -638,9 +647,11 @@ _READDBX:
          (void)$dbalpha(staffdb, temp[1], temp[2])
          l_dbx[i] = "<div class='dbxitem' id='dbxitem-" + i + "' >"
          if dbx_snapid[i] dp then
-            l_dbx[i] += "<input type='submit' uhp='" + $varname(b_dbxview[]) + "' idx='" + i + "' value='view' classsel='link' classnotsel='link' />"
+            if version = 4 then l_dbx[i] += "<$" else l_dbx[i] += "<" endif
+            l_dbx[i] += "input type='submit' uhp='" + $varname(b_dbxview[]) + "' idx='" + i + "' value='view' classsel='link' classnotsel='link' />"
          endif
-            l_dbx[i] += "<input type='submit' uhp='" + $varname(b_dbx[]) + "' idx='" + i + "' value='load' classsel='link' classnotsel='link' />"
+            if version = 4 then l_dbx[i] += "<$" else l_dbx[i] += "<" endif
+            l_dbx[i] += "input type='submit' uhp='" + $varname(b_dbx[]) + "' idx='" + i + "' value='load' classsel='link' classnotsel='link' />"
                      + "Date: " + $fmt(t_date,"MM/DD/YY")
                      + " Start: " + $fmt(t_time,"HH:MM AP")
                      + " Service: (" + $castx(t_bin) + ") " + $sam(t_bin)
@@ -673,6 +684,10 @@ goback
 _SCHEDULE:
 '   if next-date dp and next-time dp and next-dur dp then
 '      pe.date = $castnextdate
+goback
+
+_TODO:
+   usr-lib:todoverify(notetype, snapid[i], e.date, e.cl.dur[i], e.dur[i], e.start[i], e.ser, e.ru, client[i], e.loc, e.recip, e.att)
 goback
 
 _DRAFT:
@@ -744,10 +759,7 @@ _READ:
          rc = 0
          do while rc++ < $maxarray(dsts[])
             if $find("L", dstaction[rc], 1, "F") > 0 then ' = "Y" then
-'               string = dsts[rc] 
                objinfo[i,rc] = temp-lib:dst(dsts[rc])
-'               objinfo[i,rc] = temp-lib:dst(string)
-'               dstload[rc] = "N" 'only load the first time
                dstaction[rc] = $replace("L","", dstaction[rc])
             endif
          enddo
@@ -761,7 +773,7 @@ _INIT:
    if parmfile = "note-md.html" then
       note = mallet_note
    endif
-   if parmfile = "note-md-test.html" or parmfile = "note-md-child.html" then
+   if parmfile = "note-md-test.html" or parmfile = "note-md-child.html" or parmfile = "note-md-test-v4.html" then
       note = baker_note
    endif
 
@@ -799,16 +811,12 @@ _INIT:
       '$clear(parmfile)
    endif
    getoption(option)
-   $brmsg(option,1,"WEC")
+'   $brmsg(option,1,"WEC")
    if mainform[] !dp or reportform !dp then
       return
    endif
-   if $checkfile(mainform[1]) > 0 then
-      return
-   endif
-   if $checkfile(reportform) > 0 then
-      return
-   endif
+   if $checkfile(mainform[1]) > 0 then return endif
+   if $checkfile(reportform) > 0 then return endif
    if $uc(save_to_dbx) = "Y" then
       save_to_dbx = "Y"
       if dbx_code1 !dp then
@@ -840,7 +848,8 @@ _INIT:
       i = 0
       do while i++ < $maxarray(dr_Suffix[])
          l_draft[i] = " <div class='draftitem' id='draftitem-" + i + "' >"
-                    + "<input type='submit' uhp='" + $varname(b_draft[]) + "' idx='" + i + "' value='load' classsel='link' classnotsel='link' />"
+         if version = 4 then l_draft[i] += "<$" else l_draft[i] += "<" endif
+         l_draft[i] += "input type='submit' uhp='" + $varname(b_draft[]) + "' idx='" + i + "' value='load' classsel='link' classnotsel='link' />"
                     + "Date: " + $fmt($date($seg(dr_suffix[i],1,6)),"MM/DD/YY")
                     + " Start: " + $fmt($time($seg(dr_suffix[i],7,4)),"HH:MM AP")
                     + " Service: (" + $seg(dr_suffix[i],11,4) + ") " + $sam($num($seg(dr_suffix[i],11,4)))
@@ -851,6 +860,13 @@ _INIT:
       l_draft[i] += "<div class='draftitem' id='draftitem-" + i + "' >No Drafts on File</div>"
    endif
    gosub _READDBX
+   
+   if review[] dp then
+      i = 0
+      do while i++ < $maxarray(review[])
+         snap_handle:sn_viewsnap(review[i])
+      enddo
+   endif
 goback
 
 _NTAFTERSCRIPT:

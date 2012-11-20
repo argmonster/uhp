@@ -38,66 +38,6 @@ Library uhp_rx()
 
 _regid            is x
 
-_dst-idx[]        is x
-_dst[]        is x
-_hide[]        is x
-_vals[,]       is x
-_label[]       is x
-_edit[]        is x
-_default[]     is x
-_current[]     is x
-
-_d-lib            is b
-
-_rx-table[]       is x
-
-_addForm          is x
-_b_addlabel       is x
-_b_add            is x
-_b_add_ptr        is x
-
-_b_ptr            is x
-_b_actionclass    is x
-_b_action[]       is x
-_allowaction[]    is x
-_allowActAlways[] is x
-_actionForm[]     is x
-_actionNoAdd[]    is x
-_actionExpLast[]  is x
-_actionDC[]       is x
-_statClass[]      is x
-_actionlabel[]    is x
-_actionstat[]      is x
-
-_tableclass       is x
-_tableid          is x
-_headerclass      is x
-_rowclass         is x
-_rowaction[]      is x
-_detailclass      is x
-_actiondivclass   is x
-_actiondivlabel   is x
-_actionclass      is x
-_currentClass     is x
-_notCurrentClass  is x
-
-_voidclass        is x
-_editclass        is x
-_addclass         is x
-
-
-_currentonly      is x
-_freqdct          is x
-
-_allowadd         is x
-
-_newvals[]        is x
-_newDef[]         is x
-'_otherval[]       is x
-_addlabel[]       is x
-_addui[]          is x
-_addhide[]        is x
-
 'action         is x
 stat           is x
 rxstring       is x
@@ -130,6 +70,106 @@ ngm           is x
 fs            is x
 discom        is x
 
+_dst-idx[]        is x
+_dst[]        is x
+_hide[]        is x
+_vals[,]       is x
+_effd[,]       is d
+_label[]       is x
+_edit[]        is x
+_default[]     is x
+_current[]     is x
+_print[]       is x
+_plabel[]      is x
+_printRU[]     is x
+_eventRU       is x
+_prescriberOver   is x
+
+_disp[]           is x
+_dlabel[]         is x
+
+_d-lib            is b
+
+_rx-table[]       is x
+
+_addForm          is x
+_b_addlabel       is x
+_b_add            is x
+_b_add_ptr        is x
+
+_b_ptr            is x
+_b_actionclass    is x
+_b_action[]       is x
+_b_p_name         is x
+_b_print[]        is x
+_printform[]      is x
+_printAct[]       is x
+_p_idx            is x
+_p_idx2           is x
+_p_ln_start       is x
+_p_ln_end         is x
+_p_elem_start     is x
+_p_elem_end       is x
+_printString      is x
+_checked[]        is x
+'_p_ptr            is x
+_allowaction[]    is x
+_allowActAlways[] is x
+_actionForm[]     is x
+_actionNoAdd[]    is x
+_actionExpLast[]  is x
+_actionDC[]       is x
+_actionDef[]      is x
+_statClass[]      is x
+_actionlabel[]    is x
+_actionstat[]      is x
+_selfActOnly[]    is x
+_effdActOnly[]    is x
+'_actionNoDef[]    is x
+
+_tableclass       is x
+_tableid          is x
+_headerclass      is x
+_rowclass         is x
+_rowaction[]      is x
+_detailclass      is x
+_actiondivclass   is x
+_actiondivlabel   is x
+_actionclass      is x
+_currentClass     is x
+_notCurrentClass  is x
+_notTodayFlag[]   is x
+
+_histClass        is x
+_histLabel        is x
+
+_voidclass        is x
+_editclass        is x
+_addclass         is x
+
+
+_currentonly      is x
+_todayOnly        is x
+_showExp          is x
+_current-rx[]     is x
+_current-rxdt[]   is d
+_isExp[]          is x
+_isToday[]        is x
+_isvoid[]         is x
+_freqdct          is x
+_printTodayOnly   is x
+
+_allowadd         is x
+
+_newvals[]        is x
+_newDef[]         is x
+'_otherval[]       is x
+_addlabel[]       is x
+_addui[]          is x
+_addhide[]        is x
+
+_myHandle         is b
+
 _active_meds[]     is x
 _all_meds[]        is x
 _dct_meds          is b
@@ -159,29 +199,68 @@ _usre-lib            is b
 
 %global _rx-table, _tableclass, _tableid, _headerclass, _rowclass, _rowaction, _voidclass, _addclass, _editclass
 %global _actiondivclass, _actionclass, _b_action, _allowaction, _b_actionclass, _detailclass, _actionlabel, _b_ptr
-%global _actiondivlabel, _allowadd, _b_addlabel, _b_add, _b_add_ptr, _currentonly, _actionform, _actionstat, _current
-%global _actionNoAdd, _actionDC, _actionExpLast, _addForm, _currentClass, _notCurrentClass, _allowActAlways
+%global _actiondivlabel, _allowadd, _b_addlabel, _b_add, _b_add_ptr, _currentonly, _actionform, _actionstat, _current, _showExp
+%global _actionNoAdd, _actionDC, _actionExpLast, _addForm, _currentClass, _notCurrentClass, _allowActAlways, _selfActOnly
+%global _effdActOnly, _current-rx, _current-rxdt, _actionDef
+%global _histClass, _histLabel, _isExp
+%global _disp,_dlabel,_printString
 
 %global id, rxString, rxdate, mdname, mddea, mdstaff, ndc, drugname, dosage, asdir, prn, freq, unitsper
 %global uom, totalu, inst, addlinst, route, numdays, numrefill, procstat, lastdate, disdate, disphys, disreas
 %global reason, ngm, fs, discom, action, stat, _statclass, _freqdct
 
+%global _printform, _b_print, _p_idx, _p_idx2, _b_p_name, _print, _p_ln_start, _p_ln_end, _p_elem_start, _p_elem_end, _plabel, _printAct
+%global _checked
 %global _newvals, _addlabel, _addui, _addhide, _newDef, _default
 %global _rxdate, _rxend, _rxunits, _rxfreq, _rxunittot, _rxdays, _rxfill,_rxstaff, _rxname, _rxdrug, _rxndc, _rxdc
 
-%global _regid, _dst-idx, _dst, _vals[], _label[], _edit, _hide, _d-lib
+%global _regid, _dst-idx, _dst, _vals[], _effd[], _label[], _edit, _hide, _d-lib
 
 %global _active_meds[], _all_meds[], _dct_meds, _dct_fs, _dct_dis_reas, _dct_freq
 %global _days_to_enter, _n_rx_template
 
 %global _e_days_to_enter, _e_dc_early, _e_dc_late, _e_zero_days, _e_180_days, _e_fs_early, _e_fs_late, _e_new_early
 
-%global _re-render, _usre-lib
+%global _isToday, _printTodayOnly, _todayOnly, _notTodayFlag, _printRU, _eventRU, _prescriberOver, _isvoid
+
+%global _re-render, _usre-lib, _myHandle
+
 _varList[]        is x
 _varlistptr       is b
 _vartype[]        is x
 
 %global _varList, _varlistptr, _vartype[]
+
+
+'dst-id="$$rx.id"                hide-id='Y'
+'dst-stat="$$rx.stat"            label-stat='Stat'
+'dst-rxdate="$$rx.date"          label-rxdate='Date' default-rxdate='$today'
+'dst-mdname="$$rx.md.name"       label-mdname='Prescriber' default-mdname='DCT-2071'
+'dst-mddea="$$rx.md.dea"         hide-mddea='Y' 
+'dst-mdstaff="$$rx.md.staff"     hide-mdstaff='Y' default-mdstaff='$operstaffid' 
+'dst-ndc="$$rx.ndc"              hide-ndc='Y' 
+'dst-drugname="$$rx.drug.name"   label-drugname='Drug' print-drugname='Y'
+'dst-dosage="$$rx.dosage"        label-dosage='Dosage' print-dosage='Y'
+'dst-uom="$$rx.uom"              label-uom=' '         print-uom='Y'
+'dst-unitsper="$$rx.units.per"   label-unitsper=' '    print-unitsper='Y'
+'dst-route="$$rx.route"          label-route=' '       print-route='Y'
+'dst-freq="$$rx.freq"            label-freq=' '        print-freq='Y'
+'dst-prn="$$rx.prn"              label-prn='prn' edit-prn='DCT-9290' print-prn='Y'
+'dst-asdir="$$rx.asdir"          hide-asdir='y' 
+'dst-totalu="$$rx.total.u"       hide-totalu='y'       print-totalu='Y' plabel-totalu='# '
+'dst-inst="$$rx.inst"            label-inst='Instructions' print-inst='Y'
+'dst-addlinst="$$rx.addl.inst"   label-addlinst=' '        print-addlinst='Y'
+'dst-numdays="$$rx.num.days"     hide-numdays='y' 
+'dst-numrefill="$$rx.num.refill" hide-numrefill='y'        print-numrefill='Y' plabel-numrefill='Refill x ' edit-numrefill='DCT-9551'
+'dst-procstat="$$rx.proc.stat"   hide-procstat='y' 
+'dst-lastdate="$$rx.last.date"   hide-lastdate='y' 
+'dst-disdate="$$rx.dis.date"     label-disdate='D/C date' default-disdate='$today' 
+'dst-disphys="$$rx.dis.phys"     hide-disphys='y' default-disphys='DCT-2071'
+'dst-disreas="$$rx.dis.reas"     hide-disreas='y' default-disreas='n/a'
+'dst-discom="$$rx.dis.com"       hide-discom='y' 
+'dst-reason="$$rx.reason"        hide-reason='y' 
+'dst-ngm="$$rx.ngm"              hide-ngm='y' 
+'dst-fs="$$rx.fs"                hide-fs='y' 
 
 on load do:
    
@@ -191,39 +270,161 @@ on load do:
    _dct_dis_reas = _d_dis_reas_dct
    _days_to_enter = _d_days_to_enter
    
-   (void)$arrPush(_dst-idx[],$varname(stat))
-   (void)$arrPush(_dst-idx[],$varname(id       ))
-   (void)$arrPush(_dst-idx[],$varname(rxdate     ))
-   (void)$arrPush(_dst-idx[],$varname(mdname   ))
-   (void)$arrPush(_dst-idx[],$varname(mddea    ))
-   (void)$arrPush(_dst-idx[],$varname(mdstaff  ))
-   (void)$arrPush(_dst-idx[],$varname(ndc      ))
-   (void)$arrPush(_dst-idx[],$varname(drugname ))
-   (void)$arrPush(_dst-idx[],$varname(dosage   ))
-   (void)$arrPush(_dst-idx[],$varname(uom      ))
-   (void)$arrPush(_dst-idx[],$varname(unitsper ))
-   (void)$arrPush(_dst-idx[],$varname(route    ))
-   (void)$arrPush(_dst-idx[],$varname(freq     ))
-   (void)$arrPush(_dst-idx[],$varname(prn      ))
-   (void)$arrPush(_dst-idx[],$varname(asdir    ))
-   (void)$arrPush(_dst-idx[],$varname(totalu   ))
-   (void)$arrPush(_dst-idx[],$varname(inst     ))
-   (void)$arrPush(_dst-idx[],$varname(addlinst ))
-   (void)$arrPush(_dst-idx[],$varname(numdays  ))
-   (void)$arrPush(_dst-idx[],$varname(numrefill))
-   (void)$arrPush(_dst-idx[],$varname(procstat ))
-   (void)$arrPush(_dst-idx[],$varname(lastdate ))
-   (void)$arrPush(_dst-idx[],$varname(disdate  ))
-   (void)$arrPush(_dst-idx[],$varname(disphys  ))
-   (void)$arrPush(_dst-idx[],$varname(disreas  ))
-   (void)$arrPush(_dst-idx[],$varname(reason   ))
-   (void)$arrPush(_dst-idx[],$varname(ngm      ))
-   (void)$arrPush(_dst-idx[],$varname(fs       ))
-   (void)$arrPush(_dst-idx[],$varname(discom   ))
+   _varlistptr = $varptr(stat)
+   _dst-idx[_varListPtr] = $varname(stat)
+   _dst[_varListPtr]     = "$$rx.stat" 
+   _varlistptr = $varptr(id       )
+   _dst-idx[_varListPtr] = $varname(id       )
+   _dst[_varListPtr] = "$$rx.id"      
+   _varlistptr = $varptr(rxdate   )
+   _dst-idx[_varListPtr] = $varname(rxdate   )
+   _dst[_varListPtr] = "$$rx.date"    
+   _varlistptr = $varptr(mdname   )
+   _dst-idx[_varListPtr] = $varname(mdname   )
+   _dst[_varListPtr] = "$$rx.md.name" 
+   _varlistptr = $varptr(mddea    )
+   _dst-idx[_varListPtr] = $varname(mddea    )
+   _dst[_varListPtr] = "$$rx.md.dea"  
+   _varlistptr = $varptr(mdstaff  )
+   _dst-idx[_varListPtr] = $varname(mdstaff  )
+   _dst[_varListPtr] = "$$rx.md.staff"
+   _varlistptr = $varptr(ndc      )
+   _dst-idx[_varListPtr] = $varname(ndc      )
+   _dst[_varListPtr] = "$$rx.ndc"     
+   _varlistptr = $varptr(drugname )
+   _dst-idx[_varListPtr] = $varname(drugname )
+   _dst[_varListPtr] = "$$rx.drug.name" 
+   _varlistptr = $varptr(dosage   )
+   _dst-idx[_varListPtr] = $varname(dosage   )
+   _dst[_varListPtr] = "$$rx.dosage"  
+   _varlistptr = $varptr(uom      )
+   _dst-idx[_varListPtr] = $varname(uom      )
+   _dst[_varListPtr] = "$$rx.uom"     
+   _varlistptr = $varptr(unitsper )
+   _dst-idx[_varListPtr] = $varname(unitsper )
+   _dst[_varListPtr] = "$$rx.units.per" 
+   _varlistptr = $varptr(route    )
+   _dst-idx[_varListPtr] = $varname(route    )
+   _dst[_varListPtr] = "$$rx.route"   
+   _varlistptr = $varptr(freq     )
+   _dst-idx[_varListPtr] = $varname(freq     )
+   _dst[_varListPtr] = "$$rx.freq"    
+   _varlistptr = $varptr(prn      )
+   _dst-idx[_varListPtr] = $varname(prn      )
+   _dst[_varListPtr] = "$$rx.prn"     
+   _varlistptr = $varptr(asdir    )
+   _dst-idx[_varListPtr] = $varname(asdir    )
+   _dst[_varListPtr] = "$$rx.asdir"   
+   _varlistptr = $varptr(inst     )
+   _dst-idx[_varListPtr] = $varname(inst     )
+   _dst[_varListPtr] = "$$rx.inst"    
+   _varlistptr = $varptr(addlinst )
+   _dst-idx[_varListPtr] = $varname(addlinst )
+   _dst[_varListPtr] = "$$rx.addl.inst" 
+   _varlistptr = $varptr(numdays  )
+   _dst-idx[_varListPtr] = $varname(numdays  )
+   _dst[_varListPtr] = "$$rx.num.days"
+   _varlistptr = $varptr(totalu   )
+   _dst-idx[_varListPtr] = $varname(totalu   )
+   _dst[_varListPtr] = "$$rx.total.u" 
+   _varlistptr = $varptr(numrefill)
+   _dst-idx[_varListPtr] = $varname(numrefill)
+   _dst[_varListPtr] = "$$rx.num.refill"
+   _varlistptr = $varptr(procstat )
+   _dst-idx[_varListPtr] = $varname(procstat )
+   _dst[_varListPtr] = "$$rx.proc.stat" 
+   _varlistptr = $varptr(lastdate )
+   _dst-idx[_varListPtr] = $varname(lastdate )
+   _dst[_varListPtr] = "$$rx.last.date" 
+   _varlistptr = $varptr(disdate  )
+   _dst-idx[_varListPtr] = $varname(disdate  )
+   _dst[_varListPtr] = "$$rx.dis.date"
+   _varlistptr = $varptr(disphys  )
+   _dst-idx[_varListPtr] = $varname(disphys  )
+   _dst[_varListPtr] = "$$rx.dis.phys"
+   _varlistptr = $varptr(disreas  )
+   _dst-idx[_varListPtr] = $varname(disreas  )
+   _dst[_varListPtr] = "$$rx.dis.reas"
+   _varlistptr = $varptr(reason   )
+   _dst-idx[_varListPtr] = $varname(reason   )
+   _dst[_varListPtr] = "$$rx.reason"  
+   _varlistptr = $varptr(ngm      )
+   _dst-idx[_varListPtr] = $varname(ngm      )
+   _dst[_varListPtr] = "$$rx.ngm"     
+   _varlistptr = $varptr(fs       )
+   _dst-idx[_varListPtr] = $varname(fs       )
+   _dst[_varListPtr] = "$$rx.fs"      
+   _varlistptr = $varptr(discom   )
+   _dst-idx[_varListPtr] = $varname(discom   )
+   _dst[_varListPtr] = "$$rx.dis.com" 
+   'default the rx dsts:
+
+'   (void)$arrPush(_dst-idx[],$varname(stat))
+'   (void)$arrPush(_dst-idx[],$varname(id       ))
+'   (void)$arrPush(_dst-idx[],$varname(rxdate     ))
+'   (void)$arrPush(_dst-idx[],$varname(mdname   ))
+'   (void)$arrPush(_dst-idx[],$varname(mddea    ))
+'   (void)$arrPush(_dst-idx[],$varname(mdstaff  ))
+'   (void)$arrPush(_dst-idx[],$varname(ndc      ))
+'   (void)$arrPush(_dst-idx[],$varname(drugname ))
+'   (void)$arrPush(_dst-idx[],$varname(dosage   ))
+'   (void)$arrPush(_dst-idx[],$varname(uom      ))
+'   (void)$arrPush(_dst-idx[],$varname(unitsper ))
+'   (void)$arrPush(_dst-idx[],$varname(route    ))
+'   (void)$arrPush(_dst-idx[],$varname(freq     ))
+'   (void)$arrPush(_dst-idx[],$varname(prn      ))
+'   (void)$arrPush(_dst-idx[],$varname(asdir    ))
+'   (void)$arrPush(_dst-idx[],$varname(inst     ))
+'   (void)$arrPush(_dst-idx[],$varname(addlinst ))
+'   (void)$arrPush(_dst-idx[],$varname(numdays  ))
+'   (void)$arrPush(_dst-idx[],$varname(totalu   ))
+'   (void)$arrPush(_dst-idx[],$varname(numrefill))
+'   (void)$arrPush(_dst-idx[],$varname(procstat ))
+'   (void)$arrPush(_dst-idx[],$varname(lastdate ))
+'   (void)$arrPush(_dst-idx[],$varname(disdate  ))
+'   (void)$arrPush(_dst-idx[],$varname(disphys  ))
+'   (void)$arrPush(_dst-idx[],$varname(disreas  ))
+'   (void)$arrPush(_dst-idx[],$varname(reason   ))
+'   (void)$arrPush(_dst-idx[],$varname(ngm      ))
+'   (void)$arrPush(_dst-idx[],$varname(fs       ))
+'   (void)$arrPush(_dst-idx[],$varname(discom   ))
+   
+   'default the rx dsts:
+'   (void)$arrPush(_dst[],"$$rx.stat"      ) 
+'   (void)$arrPush(_dst[],"$$rx.id"        ) 
+'   (void)$arrPush(_dst[],"$$rx.date"      ) 
+'   (void)$arrPush(_dst[],"$$rx.md.name"   ) 
+'   (void)$arrPush(_dst[],"$$rx.md.dea"    ) 
+'   (void)$arrPush(_dst[],"$$rx.md.staff"  ) 
+'   (void)$arrPush(_dst[],"$$rx.ndc"       ) 
+'   (void)$arrPush(_dst[],"$$rx.drug.name" ) 
+'   (void)$arrPush(_dst[],"$$rx.dosage"    ) 
+'   (void)$arrPush(_dst[],"$$rx.uom"       ) 
+'   (void)$arrPush(_dst[],"$$rx.units.per" ) 
+'   (void)$arrPush(_dst[],"$$rx.route"     ) 
+'   (void)$arrPush(_dst[],"$$rx.freq"      ) 
+'   (void)$arrPush(_dst[],"$$rx.prn"       ) 
+'   (void)$arrPush(_dst[],"$$rx.asdir"     ) 
+'   (void)$arrPush(_dst[],"$$rx.inst"      ) 
+'   (void)$arrPush(_dst[],"$$rx.addl.inst" ) 
+'   (void)$arrPush(_dst[],"$$rx.num.days"  ) 
+'   (void)$arrPush(_dst[],"$$rx.total.u"   ) 
+'   (void)$arrPush(_dst[],"$$rx.num.refill") 
+'   (void)$arrPush(_dst[],"$$rx.proc.stat" ) 
+'   (void)$arrPush(_dst[],"$$rx.last.date" ) 
+'   (void)$arrPush(_dst[],"$$rx.dis.date"  ) 
+'   (void)$arrPush(_dst[],"$$rx.dis.phys"  ) 
+'   (void)$arrPush(_dst[],"$$rx.dis.reas"  ) 
+'   (void)$arrPush(_dst[],"$$rx.reason"    ) 
+'   (void)$arrPush(_dst[],"$$rx.ngm"       ) 
+'   (void)$arrPush(_dst[],"$$rx.fs"        ) 
+'   (void)$arrPush(_dst[],"$$rx.dis.com"   ) 
 
    
    (void)$loadlib(_d-lib, "lib_DST")
    (void)$loadlib(_usre-lib, "lib_USREVENT")
+   
+   _myHandle = $mylibhandle
 return
 
 
@@ -237,48 +438,71 @@ vals[]      is x
 edit        is x
 xeditno     is x
 
+hist-table[]   is x
+
 idx         is b
 statidx     is b
+dateidx     is b
+p-idx       is b
+p-idx2      is b
 i           is b
 j           is b
 string      is x
 t           is x
+staffidx    is b
+k           is b  'temp pointer
+l           is b  'temp pointer
 
 argproc(args[], vals[])
 if _re-render = "Y" then
-   $clear(_rx-table[], _vals[],_current[])
+   $clear(_rx-table[], _vals[],_current[], hist-table[], _current-rx[],_isExp[])
 '   rec.set()
    _d-lib:setDsts(_dst[])
    rec.read()
    
    idx = $num(_b_ptr)
 
+   if _p_idx2 !dp then
+      p-idx2 = _p_idx
+      'p-idx = 1
+   else
+      p-idx = _p_idx
+      p-idx2 = _p_idx2
+   endif
+
    if _allowadd = "Y" then
-      _rx-table[1] = "<input type='submit' value='" + _b_addlabel + "' uhp='" + _b_add + "' idx='" + $mylibhandle
+      _rx-table[1] = "<$input type='submit' value='" + _b_addlabel + "' uhp='" + _b_add + "' idx='" + _myHandle
                    + "' idx2='" + _b_add_ptr + "' classsel='link' classnotsel='link' />"
    endif
    _rx-table[1] += "<table id='" + _tableid + "' class='" + _tableclass + "'>"
    _rx-table[2] = "<thead><tr id='" + _tableid + "-header' class='" + _headerclass + "'><th></th>"
    'header row
    i = 0
-   do while i++ < $maxarray(_dst[])
-      if $uc(_hide[i]) != "Y" then
-         _rx-table[2] += "<th id='" + _tableid + "-header-" + i + "'>" + _label[i] + "</th>"
-      endif
+   do while i++ < $maxarray(_dlabel[])
+      _rx-table[2] += "<th id='" + _tableid + "-header-" + i + "'>" + _dlabel[i] + "</th>"
    enddo
    _rx-table[2] += "</tr></thead><tbody>"
+   
+   if _currentOnly != "Y" then
+      hist-table[1] = "<table id='rx-hist' class='" + _histClass + "' ><tr><th></th>"
+      i = 0
+      do while i++ < $maxarray(_dlabel[])
+         hist-table[2] += "<th id='" + _tableid + "-header-" + i + "'>" + _dlabel[i] + "</th>"
+      enddo
+      hist-table[2] += "</tr>"
+   endif
    'detail rows
    i = 0
    do while i++ < $maxarray(_vals[])
-'      if iscurrent(i) = "Y" then
+      $clear(string)
       if _current[i] !dp or _current[i] = "" then _current[i] = iscurrent(i) endif
-'      if i = 1 then
-'         if _current[i] !dp then _current[i] = "NULL" endif
-'         $brmsg($fmt(_current[i],"Current: ~~~~~~~"),1,"WEC")
-'      endif
-      if _current[i] = "Y" or _currentOnly != "Y" then
+      if _isvoid[i] != "Y" 
+      or _current[i] = "Y" 
+      or _currentOnly != "Y" 
+      or _isToday[i] = "Y"
+      or (_todayOnly = "Y" and _isToday[i] != "Y") then
          string = "<tr id='" + _tableid + "-detail-" + i + "' class='" + _rowClass
-         if _current[i] != "Y" then 
+         if _current[i] != "Y" or _isExp[i] = "Y" then 
             string += " " + _notCurrentClass
          else
             string += " " + _currentClass
@@ -292,39 +516,89 @@ if _re-render = "Y" then
                endif
             endif
          string += "'>"
-         string += "<td id='action-" + i + "' class='actiontd'><div id='action-div-" + i + "' class='" + _actiondivclass + "'>"
-                 + _actiondivlabel
+         string += "<td id='action-" + i + "' class='actiontd'><div id='action-div-" 
+                 + i + "' class='" + _actiondivclass + "'>" + _actiondivlabel
+         staffidx = $find($varname(mdstaff), _dst-idx[],1,"F")
+         dateidx = $find($varname(rxdate), _dst-idx[],1,"F")
+         
+         'the action window
+         _effd[i,staffidx] = _effd[i,staffidx]
          j = 0
          do while j++ < $maxarray(_b_action[])
-            if _allowActAlways[j] = "Y" or (_allowaction[j] != "N" and _vals[i,statidx] != _actionstat[j]) then
+            if ((_selfActOnly[j] != "Y" or _vals[i,staffidx] = $operstaffid)
+            and (_effdActOnly[j] != "Y" or _effd[i,staffidx] = $today)
+            and  _allowaction[j] != "N" 
+            and _vals[i,statidx] != _actionstat[j])
+             or _allowActAlways[j] = "Y" then
                string += "<div class='" + _actionclass + "'>"
-                       + "<input type='submit' uhp='" + _b_action[j] + "' idx='" 
-                       + $mylibhandle + "' idx2='" + idx + "' value='" 
+                       + "<$input type='submit' uhp='" + _b_action[j] + "' idx='" 
+                       + _myHandle + "' idx2='" + idx + "' value='" 
                        + _actionlabel[j] + "' classsel='" + _b_actionclass + "' classnotsel='" 
                        + _b_actionclass + "'/>"
                        + "</div>"
             endif
-               idx++
+            idx++
          enddo
          string += "</div></td>"
+         
+         'the table data
          j = 0
-         do while j++ < $maxarray(_vals[i])
-            if $uc(_hide[j]) != "Y" then
-               $parsem($uc(_edit[j]),1,"-", edit, xeditno)
-               select edit
-                  case "DB"   (void)$dbalpha($num(xeditno), _vals[i,j], T)
-                  case "DCT"  T = $dct($num(xeditno), _vals[i,j])
-                  case other  t = _vals[i,j]
-               endselect
-               string += "<td id='" + _tableid + "-detail-" + i + "-" + j + "' class='" + _detailclass + "'>"
-                       + t + "</td>"
+         do while j++ < $maxarray(_disp[])
+            string += "<td id='" + _tableid + "-detail-" + i + "-" + j + "' class='" + _detailclass + "'>"
+            if _notTodayFlag[j] dp then
+               if _isToday[i] != "Y" and _Current[i] = "Y" then string += _notTodayFlag[j] endif
             endif
+            t = _disp[j]
+            string += stringProc(t,i)
          enddo
+
+         'the print selector
+         if ((_current[i] = "Y" and _isExp[i] != "Y" and _printTodayOnly != "Y")
+             or (_isToday[i] = "Y" and _printTodayOnly = "Y"))
+         and _printForm[] dp then
+            string += "<td><$input type='checkbox' uhp='" + _b_p_name + "' idx='" 
+            if _p_idx2 !dp then
+               string += p-idx2 
+            else
+               string += $castx(p-idx) + "' idx2='" + $castx(p-idx2)
+            endif
+            string += "' value='Y' /></td>"
+         endif
+         p-idx2++
+         
+         'end row
          string += "</tr>"
-         (void)$arrPush(_rx-table[], string)
+      
+      
+         if _current[i] = "Y" then
+            (void)$arrPush(_rx-table[], string)
+         else
+            if _currentOnly != "Y" then
+               (void)$arrPush(hist-table[], string)
+            endif
+         endif
       endif
    enddo
    (void)$arrPush(_rx-table[], "</tbody></table>")
+   if hist-table[] dp then
+      (void)$arrpush(_rx-table[], _histLabel)
+      (void)$arraymerge(_rx-table[], hist-table[])
+      (void)$arrpush(_rx-table[], "</table>")
+   endif
+   if _printform[] dp then
+      string = "<div id='print'>"
+      i = 0
+      do while i++ < $maxarray(_printform[])
+         t = "|" + _printRU[i] + "|"
+         if $find(_eventRU, t, 1, "F") > 0 or _printRU[i] !dp then
+            string += "<$input type='submit' uhp='" + _b_add + "' idx='" + _myHandle + "' idx2='" + idx + "' value='"
+                    + _b_print[i] + "' classsel='" + _b_actionclass + "' classnotsel='" + _b_actionclass + "'/>" 
+         endif
+            idx++
+      enddo
+      string += "</div>"
+      (void)$arrPush(_rx-table[], string)
+   endif
 endif
 
 render[] = _rx-table[]
@@ -346,108 +620,258 @@ actiontot      is b
 actionidx      is b
 startidx       is b
 myidx          is b
+i              is b
+j              is b
 
 myForm         is x
-
+$allowupdate(ui[])
 $clear(actiontot, actionidx, startidx, myidx, myForm)
 $clear(id, rxString, rxdate, mdname, mddea, mdstaff, ndc, drugname, dosage, asdir, prn, freq, unitsper, uom, 
          totalu, inst, addlinst, route, numdays, numrefill, procstat, lastdate, disdate, disphys, disreas,
          reason, ngm, fs, discom, stat)
 select b_ptr
    case 1      'add
-               setNew("New-Start")
                actionidx = 1
+               setNew(_actionDef[actionidx])
                myForm = _addForm
-   case other  ' one of the 'action' buttons
+   case other  ' one of the 'action' or 'print' buttons
                actiontot = $maxarray(_b_action[])
                startidx = $num(_b_ptr)
                actionidx = $mod(`b_ptr - startidx`,actiontot) + 1
                myidx = ((b_ptr - actionidx - startidx + 1) / actiontot) + 1
-               setNew(_actionstat[actionidx],myidx)
-               myForm = _actionform[actionidx]
+               if myidx > $maxarray(_vals[]) then
+                  'print button
+                  b_ptr = b_ptr - ($maxarray(_vals[]) * actiontot) - 1 '+ actionidx - 1
+                  print(_printform[b_ptr], myidx, ui[])
+'$trace("on,path", "$SYS_/SCRIPT/S/tim.trace")
+                  if $num(_printAct[b_ptr]) dp then
+                     actionidx = $num(_printAct[b_ptr])
+                     j = 0
+                     do while j++ < $maxarray(_checked[]) 
+                        if _checked[j] = "Y" then
+                           myidx = j
+                           setNew(_actionDef[actionidx],myidx)
+                           validate()
+                           gosub __NEWPROC
+                        endif
+                     enddo
+                  endif
+                  $clear(_checked[],_vals[],_newvals[])
+'$trace("off")
+                  return
+               else
+'                  setNew(_actionstat[actionidx],myidx)
+                  setNew(_actionDef[actionidx],myidx)
+                  myForm = _actionform[actionidx]
+               endif
 endselect
-stat = _actionstat[actionidx]
-formTItle = _actionLabel[actionidx]
-do while 1 = 1
+'$trace("off")
+if _actionstat[actionidx] dp then
+   stat = _actionstat[actionidx]
+endif
    $clear($endbutton)
-   if $checkfile(myForm) = 0 then
-      uhp(myForm)
-   else
-      $brmsg(myForm, 1, "WEC")
-      return
-   endif
-   $clear(err)
-   select $endbutton
-      case "CANCEL"  $clear(_newvals[])
-                     return
-      case "SUBMIT"  err = validate()
-                     if err !dp then
-                        if myidx > 0 then
-                        	_newvals[] = _vals[myidx]
-                        	if _actionExpLast[actionidx] = "Y" then
-                              startidx = $find($varname(lastdate), _dst-idx[],1,"F")
-                              _newvals[startidx] = $castd(rxdate) - 1
-'                              startidx = $find($varname(stat),_dst-idx[],1,"F")
-'                              _newvals[startidx] = "EXP"
-                              startidx = _d-lib:updateByValue(,_dst[],_vals[myidx],_dst[],_newvals[])
-                              _re-render = "Y"
-                           endif
-                           if _actionDC[actionidx] = "Y" then
-                              startidx = $find($varname(disdate), _dst-idx[],1,"F")
-                              _newvals[startidx] = disdate
-                              startidx = $find($varname(disphys), _dst-idx[],1,"F")
-                              _newvals[startidx] = disphys
-                              startidx = $find($varname(disreas), _dst-idx[],1,"F")
-                              _newvals[startidx] = disreas
-                              startidx = $find($varname(discom), _dst-idx[],1,"F")
-                              _newvals[startidx] = disreas
-                              startidx = $find($varname(stat), _dst-idx[],1,"F")
-                              _newvals[startidx] = stat
-                              startidx = _d-lib:updateByValue(,_dst[],_vals[myidx],_dst[],_newvals[])
-                              _actionNoAdd[actionidx] = "N"
-                              _re-render = "Y"
-                           endif
-                        endif
-                        if _actionNoAdd[actionidx] != "N" then
-                           update()
-                        endif
-                        '$clear(_newvals[])
-                       _re-render = "Y"
+if myForm dp then
+   formTItle = _actionLabel[actionidx]
+   do while 1 = 1
+      if $checkfile(myForm) = 0 then
+         uhp(myForm)
+      else
+         $brmsg(myForm, 1, "WEC")
+         return
+      endif
+      $clear(err)
+      select $endbutton
+         case "CANCEL"  $clear(_newvals[])
                         return
-                     endif
-   endselect
-enddo
+         case "SUBMIT"  err = validate()
+                        if err !dp then
+                           gosub __NEWPROC
+                           return
+                        endif
+      endselect
+   enddo
+else
+   validate()
+   gosub __NEWPROC
+endif
+
+return 'exit before subroutine
+__NEWPROC:
+   if myidx > 0 then
+   	_newvals[] = _vals[myidx]  'the previous values
+   	if _actionExpLast[actionidx] = "Y" then
+         startidx = $find($varname(lastdate), _dst-idx[],1,"F")
+         if $castd(_newvals[startidx]) >= $castd(rxdate) then
+            _newvals[startidx] = $castd(rxdate) - 1
+            startidx = _d-lib:updateByValue(,_dst[],_vals[myidx],_dst[],_newvals[])
+         endif
+         _re-render = "Y"
+      endif
+      if _actionDC[actionidx] = "Y" then
+      endif
+   endif
+   'update()
+   'grab all of the new values.
+   $clear(_newvals[])
+   i = 0
+   do while i++ < $maxarray(_dst-idx[])
+      if _dst-idx[i] dp then (void)$getvar(i,_newvals[i]) endif
+'      _varlistptr = $find(_dst-idx[i], _varlist[],1,"F")
+'      (void)$getVar(_varlistptr, _newvals[i])
+   enddo
+   _actionNoAdd[actionidx] = _actionNoAdd[actionidx]
+   if _actionNoAdd[actionidx] != "N" then
+      _d-lib:add(_regid, _dst[], _newvals[])
+      'rec.read()
+   else
+      startidx = _d-lib:updateByValue(,_dst[],_vals[myidx],_dst[],_newvals[])
+   endif
+      '$clear(_vals[], _newvals[])
+      _re-render = "Y"
+goback
 
 end submit
 
 
 '-------------------------------------------------------------------------------
 '-------------------------------------------------------------------------------
+public dynamic function print(form, idx, checks[]) is null
+form       is x
+idx        is b
+checks[,]   is x
+           
+c1         is b
+c2         is b
+p-start     is b
+           
+i          is b
+j          is b
+k          is b
+t          is x
+           
+edit       is x
+xeditno    is x
+printdate   is x
+prescriber  is x
+prescriberStaff is x
+
+l_print[]   is x
+$allowupdate(checks[])
+if form !dp then return endif
+printdate = $today
+prescriber = $oper
+prescriberStaff = $operstaffid
+if _prescriberOver dp then
+   i = 1
+   prescriber = $parse(_prescriberOver, i, ":")
+   prescriberStaff = $parse(_prescriberOver, i)
+endif
+prescriber = $dct(2071, prescriber)
+i = 0
+if _p_idx2 !dp then
+   c1 = 1
+   c2 = _p_idx
+   p-start = _p_idx
+else
+   c1 = _p_idx
+   c2 = _p_idx2
+   p-start = _p_idx2
+endif
+do while c2 < `$maxarray(checks[c1]) + 1`
+   if checks[c1,c2] = "Y" Then
+      k = c2 - p-start + 1
+         t = stringProc(_printString, k)
+          l_print[++i] = t
+      _checked[k] = "Y"
+      $clear(checks[c1,c2])
+   endif
+   c2++
+enddo
+if l_print[] !dp then 'no meds selected error?
+endif
+do while 1 = 1
+   uhp(form)
+   if $endbutton = "CANCEL" return endif
+enddo
+end print
+'-------------------------------------------------------------------------------
+'-------------------------------------------------------------------------------
 public dynamic function setNew(option,idx) is null
 option   is x
 idx      is b
+item     is x
 def      is x
+edit     is x
+val      is x
+nodef    is x
 i        is b
-i = 0
-do while i++ < $maxarray(_dst-idx[])
-   $clear(def)
-   _varlistptr = $find(_dst-idx[i], _varlist[],1,"F")
-   if _dst-idx[] dp then
-      if idx > 0 then
-         def = _vals[idx,i]
+
+if idx > 0 then
+   i = 0
+   do while i++ < $maxarray(_dst-idx[])
+      if _dst-idx[i] dp then
+         if _dst-idx[i] = "DRUGNAME" then
+            item = justthename(_vals[idx,i])
+         else
+            item = _vals[idx,i]
+         endif
+'         (void)$putvar(i, _vals[idx,i])
+         (void)$putvar(i, item)
       endif
-      if _default[i] dp then
-         select $uc(_default[i])
-            case "$TODAY"  def = $today
-            case "$OPER"   def = $oper
-            case "$OPERSTAFFID"  def = $operstaffid
-            case "DCT-2071"   def = $dct(2071,$oper)
-            case other        def = _default[i]
-         endselect
-      endif
-      (void)$putvar(_varlistptr, def)
+   enddo
+endif
+$clear(item)
+i = 1
+item = $parse(option, i, ",")
+do while item dp
+   $clear(def,edit,val)
+   $parsem(item, 1, ":", item, def, edit)
+   _varlistptr = $find($uc(item), _dst-idx[], 1, "F")
+   if _varlistptr > 0 then
+'      if idx > 0 then
+'         def = _vals[idx,_varlistptr]
+'      endif
+      select $uc(def)
+         case "$TODAY"        val = $today
+         case "$OPER"         val = $oper
+         case "$OPERSTAFFID"  val = $operstaffid
+      endselect
+      if edit dp then (void)$getEditMsg(val, edit, val) endif
+      if val !dp then val = def endif
+      (void)$putvar(_varlistptr, val)
    endif
+   item = $parse(option, i, ",")
 enddo
+      
+
+'nodef = "," + _actionNoDef[idx] + ","
+'i = 0
+'do while i++ < $maxarray(_dst-idx[])
+'   def = "," + _dst-idx[i] + ","
+'   if $find(def, nodef, 1, "F") = 0 then
+'      $clear(def)
+'      _varlistptr = $find(_dst-idx[i], _varlist[],1,"F")
+'      if _dst-idx[] dp then
+'         if idx > 0 then
+'            def = _vals[idx,i]
+'         endif
+'         if $uc(option) != "N" then
+'            if _default[i] dp then
+'               $parsem(_default[i],1,":",def,edit)
+'      '         select $uc(_default[i])
+'               select $uc(def)
+'                  case "$TODAY"  def = $today
+'                  case "$OPER"   def = $oper
+'                  case "$OPERSTAFFID"  def = $operstaffid
+'               endselect
+'               if edit dp then (void)$getEditMsg(def, edit, def) endif
+'               if def !dp then def = $parse(_default[i], 1, ":") endif
+'            endif
+'         endif
+'         (void)$putvar(_varlistptr, def)
+'      endif
+'   endif
+'enddo
 'action = option
 'stat = option
 if drugname dp then
@@ -466,19 +890,109 @@ end setNew
 public dynamic function iscurrent(idx) is x
 idx      is b
 i        is b
+j        is b
+k        is b
+l        is b
 iscurrent = "Y"
+
+i = $find($varname(stat), _dst-idx[],1,"F")
+if i > 0 then 
+   if _vals[idx,i] = "V" then
+      iscurrent = "N"
+      _isvoid[idx] = "Y"
+      return
+   endif
+endif
+
+'was it discontinued today?
+i = $find($varname(disdate), _dst-idx[],1,"F")
+if i > 0 then
+   if $castd(_vals[idx,i]) = $today then
+      _isToday[idx] = "Y"
+   endif
+   if _vals[idx,i] dp and $castd(_vals[idx,i]) < $today then
+      iscurrent = "N"
+      k = $find($varname(drugname), _dst-idx[], 1, "F")
+      j = $find($uc(justthename(_vals[idx,i])),_current-rx[], 1, "F")
+      if j = 0 then
+         j = $maxarray(_current-rx[]) + 1
+         _current-rx[j] = $uc(justthename(_vals[idx,k]))
+         _current-rxdt[j] = $castd(_vals[idx,i])
+      endif
+      return   'not current
+   endif
+endif
+
+'set the 'istoday' var
+i = $find($varname(rxdate), _dst-idx[], 1, "F")
+if i > 0 then
+   if $castd(_vals[idx,i]) = $today then
+      _isToday[idx] = "Y"
+   endif
+endif
+
+'check exp date 
 i = $find($varname(lastdate), _dst-idx[],1,"F")
 if i > 0 then
    if _vals[idx,i] dp and $castd(_vals[idx,i]) < $today then
-      iscurrent = "N"
+      _isExp[idx] = "Y"
+      if _showExp = "N" then
+         iscurrent = "N"
+         return
+      endif
    endif
 endif
-i = $find($varname(disdate), _dst-idx[],1,"F")
-if i > 0 then
-   if _vals[idx,i] dp and $castd(_vals[idx,i]) <= $today then
-      iscurrent = "N"
+
+'check for other current meds with the same name:
+i = $find($varname(drugname), _dst-idx[],1,"F")
+if i > 0 then 
+   k = $find($varname(rxdate), _dst-idx[], 1, "F")    'find the rx value
+'   j = $find($uc(_vals[idx,i]), _current-rx[], 1, "F")
+   j = $find($uc(justthename(_vals[idx,i])), _current-rx[], 1, "F")
+   if j > 0 then
+      'check the dates
+      if k > 0 then
+         if $castd(_vals[idx,k]) < _current-rxdt[j] then
+            iscurrent = "N"
+         endif
+      endif
+   else
+      j = $maxarray(_current-rx[]) + 1
+      _current-rx[j] = $uc(_vals[idx, i])
+      _current-rx[j] = $uc(justthename(_vals[idx,i]))
+      _current-rxdt[j] = $castd(_vals[idx,k])
    endif
 endif
+      
+'   'check the dates of current meds - meds rx'd on same day should be current
+'   k = $find($varname(rxdate), _dst-idx[],1,"F")
+'   l = $find($uc(_vals[idx,j]), _current-rx[], 1, "F")
+'   if l > 0 then
+'      if k > 0 and $castd(_vals[idx,k]) != _current-rxdt[l] then
+'         iscurrent = "N"
+'      endif
+'   elseif 
+'      
+'      
+'      
+'      
+'      if j > 0 then
+'         l = $find($uc(_vals[idx,j]), _current-rx[], 1, "F")
+'         if l > 0 then
+'            if $castd(_vals[idx,k]) != _current-rxdt[l] then
+'            
+'      if (j > 0 and $find($uc(_vals[idx,j]), _current-rx[], 1, "F") > 0) 
+'      or _showExp = "N" then
+'         iscurrent = "N"
+'      endif
+'   else
+'      i = $maxarray(_current-rx[]) + 1
+'      _current-rx[i] = $uc(_vals[idx,j])
+'      _current-rxdt[i] = $castd(_vals[idx,k])
+'   endif
+'endif
+
+
 end iscurrent
 
 
@@ -488,14 +1002,22 @@ public dynamic function validate() is x
 i     is b
 f     is n
 t     is x
+c[]   is x
+d[]   is x
+a[]   is x
+u1    is n
+u2    is n
+$clear(i,f,t,c[],d[],a[])
 if _usre-lib:check_date(_days_to_enter, rxdate, "N") != "Y" then
-   validate += "<li>" + $fmt(_days_to_enter, _e_days_to_enter) + "</li>"
+   if disdate !dp or ( disdate dp and _usre-lib:check_date(_days_to_enter, disdate, "N") != "Y" ) then
+      validate += "<li>" + $fmt(_days_to_enter, _e_days_to_enter) + "</li>"
+   endif
 endif
-if mdname !dp then
-   validate += "<li>Please enter the Prescribers Name</li>"
-endif 
 if drugname !dp then
    validate += "<li>Drug Name Missing</li>"
+endif
+if uom !dp then
+   validate += "<li>Units of Measure Missing</li>"
 endif
 if unitsper !dp then
    validate += "<li>Units per Does Missing</li>"
@@ -509,22 +1031,46 @@ endif
 if unitsper !dp then
    validate += "<li>Units Per Missing</li>"
 endif
-if totalu !dp then
+if $num(totalu) !dp then
    validate += "<li>Number of Pills Missing</li>"
 endif
-if numrefill !dp then
+if $num(numrefill) !dp then
    validate += "<li>Number of Refills Missing</li>"
 endif
+if mdstaff dp and mdname !dp then
+   'try to look up staff
+   (void)$dctload(2071, c[], d[], a[])
+   i = $find(mdstaff, a[])
+   if i > 0 then
+      mdname = d[i]
+   endif
+endif
+if mdname !dp then
+   validate += "<li>Please enter the Prescribers Name</li>"
+endif 
+'if mdname !dp then
+'   validate += "<li>Please enter the Prescribers Name</li>"
+'endif 
 if validate dp then
    validate = "<ul>" + validate + "</ul>"
 else
+   totalu = $num(totalu)
+   numrefill = $num(numrefill)
+   unitsper = $replace(" ", "", unitsper)
+   'get the biggest units per if in a range
+   $clear(c[])
+   $parsem(unitsper, 1, "-", c[])
+   u1 = $num(c[1])
+   u2 = $num(c[2])
+   if u2 > u1 then u1 = u2 endif
    if _freqdct dp then
       i = $casti(_freqdct)
-      t = $dct(i,freq,"1")
+      t = $dct(i,freq,"1")  'get the freq in times / day
       f = $castn(t)
-      i = $casti(totalu) / (f / $casti(unitsper))
+      i = $casti(totalu) / (f * u1)  'total pills / (times/day * #/time)
       numdays = $castx(i)
       i += i * $casti(numrefill)
+      if i < 1 then i = 1 endif
       lastdate = $castd(rxdate) + i
    endif
 endif
@@ -587,8 +1133,8 @@ do while i++ < $maxarray(args[], vals[])
       else
          $clear(idx)
       endif
-      vals[i] = $replace("{", "<", vals[i])
-      vals[i] = $replace("}", ">", vals[i])
+'      vals[i] = $replace("{", "<", vals[i])
+'      vals[i] = $replace("}", ">", vals[i])
       if copy[idx] != vals[i] then
          $setvartype(val, _vartype[_varlistptr])
          val = $cast(vals[i], _vartype[_varlistptr])
@@ -611,13 +1157,109 @@ end rec.set
 
 '------------------------------------------------------------------
 '------------------------------------------------------------------
+public dynamic function stringProc(string, i) is x
+string      is x
+i           is b
+
+t           is x
+k           is b
+l           is b
+edit        is x
+delim       is x
+
+k = 1
+t = $parse(string, k, "+")
+do while t dp
+   edit = $charx(t,1)
+   if edit = "'" or edit = x"22" then
+'      if $charx(t, $len(t)) = edit then
+'         stringProc += $seg(t, 2, `$len(t) - 2`)
+'      endif
+      edit += "\"
+      l = 2
+      do while l < $len(t)
+         stringProc += $parse(t, l, edit, delim)
+         if delim = "\" then
+            stringProc += $charx(t,l)
+         endif
+      enddo
+   else
+      $parsem(t,1,":",t,edit)
+      l = $find($uc(t),_dst-idx[],1,"F")
+      if l > 0 then
+         t = _vals[i,l]
+         if edit dp then (void)$getEditMsg(t, edit, t) endif
+         if t !dp then t = _vals[i,l] endif
+         stringProc += t
+      endif
+   endif
+   t = $parse(string, k, "+")
+enddo
+
+end stringPRoc
+
+'------------------------------------------------------------------
+'------------------------------------------------------------------
+public dynamic function justthename(name) is x
+name     is x
+
+parts[]  is x
+idx      is b
+t        is x
+rc       is b
+i        is b
+
+justthename = name
+t = $uc(name)
+if $find("MG", t, 1, "F") > 0 then
+   $parsem(name, 1, " ", parts[])
+   $clear(name)
+   i = 0
+   do while i++ < $maxarray(parts[])
+      idx = 1
+      t = $uc(parts[i])
+      idx = $find("MG", t, 1, "F")
+      if idx = 0 then
+         if $num(parts[i]) = 0 then
+            if name dp then
+               name += " "
+            endif
+            name += parts[i]
+         endif
+      else
+         t = $seg(parts[i], 1, --idx)
+         rc = $num(t)
+         t = $replace($castx(rc), "", t)
+         if t dp then
+            if name dp then
+               name += " "
+            endif
+            name += t
+         endif
+         i = $maxarray(parts[])
+      endif
+   enddo
+   if name dp then
+      justthename = name
+   endif
+endif
+
+end justthename
+
+
+'------------------------------------------------------------------
+'------------------------------------------------------------------
 public dynamic function rec.read() is b
 rc       is b
 i        is b
+'temp[]   is x
 i = 0
 rc = _d-lib:read(_regid,_dst[])
 do while rc < 2
-   _vals[++i] = _d-lib:dst(_dst[])[]
+   i++
+   _d-lib:listinfo(_dst[], _vals[i], _effd[i])
+'   _vals[++i] = _d-lib:dst(_dst[])[]
+'   _effd[i]   = _d-lib:effd(_dst[])[]
    rc = _d-lib:nextrec()
 enddo
 rec.read = i

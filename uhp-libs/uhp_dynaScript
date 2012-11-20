@@ -1,0 +1,192 @@
+library uhp_dynaScript()
+
+_regid         is x
+_script[]      is x
+_arg1[]        is x
+_arg2[]        is x
+_arg3[]        is x
+_arg4[]        is x
+_compType[]    is x
+_compEdit[]    is x
+_compVal[]     is x
+_compare[]     is x
+_compDataType[]   is x
+
+_srcClass[]    is x
+_srcId[]       is x
+_srcBtnClass[] is x
+_srcBtnLabel[] is x
+_srcUhp[]      is x
+_srcIdx[]      is x
+
+_render[]      is x
+_re-render     is x
+_forceRead     is x
+_forceRender   is x
+_exitonmatch   is x
+
+_varlistptr    is b  
+_varlist[]     is x
+_vartype[]     is x
+
+_dst-lib       is b
+_myHandle      is b
+
+%global _regid, _script, _arg1, _arg2, _arg3, _arg4, _compType, _compEdit, _compVal, _compare, _compDataType
+%global _srcClass, _srcID, _srcBtnClass, _srcBtnLabel, _srcUhp, _srcIdx
+%global _list, _db, _d-lib, _id, _render, _re-render, _forceRead, _forceRender, _dst-lib
+%global _varlistptr, _varlist, _vartype, _myHandle, _exitonmatch
+
+on load do:
+   (void)$loadlib(_dst-lib, "lib_DST")
+   _myHandle = $myLibHandle
+return
+
+'----------------------------------------------------
+'----------------------------------------------------
+public dynamic function render(args[], vals[])[] is x
+args[]      is x
+vals[]      is x
+
+i           is b
+j           is b
+thisEdit    is x
+thisEditnum is x
+match       is x
+string      is x
+dstChain[]  is x
+
+argproc(args[], vals[])
+if _render[] !dp or _forceRender = "Y" then
+   $clear(_render[])
+   i = 0 
+   do while i++ < $maxarray(_script[])
+      $clear(match)
+      $parsem(_compEdit[i], 1, "-", thisEdit, thisEditNum)
+      select $uc(thisEdit)
+         case "DST"     $parsem(thisEditNum, 1, ",", dstChain[])
+                        _compVal[i] = _regid
+                        j = 0
+                        do while j++ < $maxarray(dstChain[])
+                           _dst-lib:read(_compVal[i], dstChain[j])
+                           _compVal[i] = _dst-lib:dst(dstChain[j])
+                        enddo
+'                        _dst-lib:read(_regid, thisEditNum)
+'                        _compVal[i] = _dst-lib:dst(thisEditNum)
+         case "DCT"     _compVal[i] = $dct($casti(thisEditNum), _compVal[i])
+         case "DB"      (void)$dbalpha($casti(thisEditNum), _regid, _compVal[i])
+         case "CONST"   match = "Y"
+      endselect
+      if _compDataType[i] !dp then
+         _compDataType[i] = "X"
+      endif
+      select _compType[i]
+         case "="       if $cast(_compVal[i],_compDataType[i]) = $cast(_compare[i], _compDataType[i]) then
+                           match = "Y"
+                        endif
+         case ">"       if $cast(_compVal[i],_compDataType[i]) > $cast(_compare[i], _compDataType[i]) then
+                           match = "Y"
+                        endif
+         case "<"       if $cast(_compVal[i],_compDataType[i]) < $cast(_compare[i], _compDataType[i]) then
+                           match = "Y"
+                        endif
+      endselect
+      if match = "Y" then
+         string = "<div class='" + _srcClass[i] + "' id='" + _srcId[i] + "'><$input type='submit' value='" + _srcBtnLabel[i] + "' uhp='" + _srcUhp[i] + "' idx='"
+                + _myhandle + "' idx2='" + _srcIdx[i] + "' classsel='" + _srcBtnClass[i] + "' classnotsel='" + _srcBtnClass[i] + "' /><div>"
+'                + $myLibhandle + "' idx2='" + _srcIdx[i] + "' classsel='" + _srcBtnClass[i] + "' classnotsel='" + _srcBtnClass[i] + "' /><div>"
+         (void)$arrPush(_render[], string)
+         if _exitonmatch = "Y" then
+            i = $maxarray(_script[])
+         endif
+      endif
+   enddo
+endif
+render[] = _render[]
+end render
+
+
+'----------------------------------------------------
+'----------------------------------------------------
+public dynamic function submit(b_ptr, b_list[], ui[]) is null
+b_list[]       is x
+ui[,]          is x
+b_ptr          is b
+$allowupdate(ui[])
+if b_ptr > 0 then
+   if $uc(_arg1[b_ptr]) = "$REGID" then _arg1[b_ptr] = _regid endif
+   if $uc(_arg2[b_ptr]) = "$REGID" then _arg2[b_ptr] = _regid endif
+   if $uc(_arg3[b_ptr]) = "$REGID" then _arg3[b_ptr] = _regid endif
+   if $uc(_arg4[b_ptr]) = "$REGID" then _arg4[b_ptr] = _regid endif
+      
+   call _script[b_ptr] (_arg1[b_ptr], _arg2[b_ptr], _arg3[b_ptr], _arg4[b_ptr])
+endif
+end submit
+
+
+'----------------------------------------------------
+'----------------------------------------------------
+public dynamic function argproc(args[], vals[]) is null
+args[]   is x
+vals[]   is x
+arg      is x
+copy[,]   is x
+copyptr  is b
+xidx     is x
+xidx2    is x
+idx      is b
+idx2     is b
+i        is b
+'vartype[] is x
+val      is v
+$clear(_re-render)
+i = 0
+do while i++ < $maxarray(args[], vals[])
+   $parsem($uc(args[i]), 1, "-", arg, xidx, xidx2)
+   arg = "_" + arg
+   _varlistptr = $find(arg, _varlist[], 1, "F")
+   if _varlistptr = 0 then
+      _varlistptr = $maxarray(_varlist[])
+      do while _varlist[_varlistptr] != arg
+         (void)$getvar(++_varlistptr,,_vartype[_varlistptr],,_varlist[_varlistptr])
+         if _varlist[_varlistptr] !dp then
+            $clear(arg)   'invalid argument
+         endif
+      enddo
+   endif
+   if arg dp then
+      copyptr = $varptr(copy[])
+      (void)$copyvar(_varlistptr, copyptr)
+      if xidx dp and xidx2 !dp then
+         idx = 1
+         idx2 = $num(xidx)
+      elseif xidx2 dp and xidx !dp then
+         idx = $num(xidx2)
+         $clear(idx2)
+      else
+         idx = $num(xidx)
+         idx2 = $num(xidx2)
+      endif
+      vals[i] = $replace("{", "<", vals[i])
+      vals[i] = $replace("}", ">", vals[i])
+      if $charx(vals[i],1) = "$" then
+         select $uc(vals[i])
+            case "$TODAY"  vals[i] = $today
+            case "$OPER"   vals[i] = $oper
+            case "$OPERSTAFFID"  vals[i] = $operstaffid
+         endselect
+      endif
+      if copy[idx,idx2] != vals[i] then
+         $setvartype(val, _vartype[_varlistptr])
+         val = $cast(vals[i], _vartype[_varlistptr])
+         _re-render = "Y"
+         copy[idx,idx2] = val
+'         copy[idx] = vals[i]
+         (void)$copyvar(copyptr, _varlistptr)
+      endif
+   endif
+enddo
+if _re-render = "Y" or _forceRead = "Y" then
+   $clear(_render[])
+endif
+end argproc

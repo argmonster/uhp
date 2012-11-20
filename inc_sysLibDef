@@ -16,8 +16,8 @@ std_handle	      is x
 snaplib           is x
 snapLibsc         is b
 
-%common client_handle, dd_handle, draft_handle, dsum_handle, general_handle, inote_handle, note_handle
-%common obj_handle, report_handle,snap_handle, std_Handle, staff_handle, snaplib
+'%common client_handle, dd_handle, draft_handle, dsum_handle, general_handle, inote_handle, note_handle
+'%common obj_handle, report_handle,snap_handle, std_Handle, staff_handle, snaplib
 %global client_handle, dd_handle, draft_handle, dsum_handle, general_handle, inote_handle, note_handle
 %global obj_handle, report_handle,snap_handle, std_Handle, staff_handle, snaplib
 dd_handle	   = "l_dataLib"

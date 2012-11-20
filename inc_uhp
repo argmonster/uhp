@@ -87,6 +87,18 @@
 '     **This fixes the 'greater than' bug by bypassing the parsing of the contents of <script> tags.
 ' + tags currently set to _NOPARSE = <script>, <style>, and <head>
 ' ~ re arranged the select cases in _TAGPROC
+' Tim August or September sometime 4.0 ** Major version change
+'  ~changed uhp tags to include 2 character identification: '<$' to indicate uhp tags.
+'  + versions < 4.0 still supported.
+' Tim 10/29.2012 4.1 **Bug fix
+'  ** Bug reported by Robert Edeker: Tags that trigger the _NOPARSE routine where skipping processing
+'     the line after the open tag. If the line contained the close tag it was causing uhp to fail.
+'  - removed extra gosub _NEXTLINE from _NOPARSE. The routine was skipping the line immediately after
+'     a tag that triggered _NOPARSE, so if the next line contained the closing tag uhp was bombing out
+' Tim 10/31/2012 4.2 **Bug fix
+'  ** Bug reported by Robert Edeker: Related to the 4.1 fix. _NOPARSE was duplicating the $ctag() of the 
+'     first line of the template that triggered the _NOPARSE routine.
+'  ~ Re worked the _NOPARSE routine ensure that each line only gets processed & $ctag()ed once.
 '-----------------------------------------------------------------------------------------
 'General Use Info:
 '
@@ -234,9 +246,15 @@
 '  |
 '  `--> End of template file
 '---------------------------
-dynamic function uhp(uhp.arg[]) is b
+dynamic function uhp(uhp.arg[],version) is b
  'argument
 uhp.arg[]      is x
+ 'version var for backwards compatable
+version        is n
+'set the default version constant 
+%define def_ver 3.3
+'set the current version constant
+%define cur_ver 4
  'template file variables
 uhp.path       is x     'path of the html template for processing
 uhp.handle     is b
@@ -325,6 +343,8 @@ $loopcount = 0
 $looplimit = 99999 'change to 0?
 contPtr = 0
 contTot = 0
+'handle the versioning
+if version !dp then version = def_ver endif
 'process the argument
 if $argusage(uhp.arg[]) = 3 then  'passed in as array
    if $tempfile(uhp.path) > 0 then
@@ -358,7 +378,11 @@ if $openfile(uhp.handle, uhp.path, "I") > 0 then
    uhp = 1
    return
 endif
-tagStart = "<"
+select version
+   case < 4    tagStart = "<"
+   case 4      tagStart = "<$"
+endselect
+'tagStart = "<"
 do while $readfile(uhp.handle, uhp.Line) = 0
    currentptr = 1
    lineLen = $len(uhp.line) + 1
@@ -401,62 +425,102 @@ goback
 ' Find the next uhp tag to process
 '-------------------------------------
 _TAGFIND:
+   select version
+      case < 4 gosub _V3FIND
+      case => 4   gosub _V4FIND
+   endselect
+goback
+
+'-------------------------------------
+' Find the next uhp tag to process version 4
+'-------------------------------------
+_V4FIND:
+   if uhp.line dp then
+      do while currentptr < lineLen
+         if currentptr = 0 then currentptr = 1 endif
+         i = $find(tagStart, uhp.line, currentptr, "F")
+         if i = 0 then i = linelen endif
+         i -= currentptr
+         notag = $seg(uhp.line, currentptr, i)
+'         $ctag(notag)
+         if notag dp and skip != "Y" then $ctag($replace(x"0d", "<br />", notag)) endif
+         currentptr += i
+         if currentptr < linelen then
+            currentptr += 2
+            gosub _TAGPARSE
+            gosub _TAGPROC                  
+         endif
+      enddo
+   endif
+goback
+
+'-------------------------------------
+' Find the next uhp tag to process version < 4
+'-------------------------------------
+_V3FIND:
    if uhp.line dp then
       do while currentptr < lineLen
          if currentptr = 0 then currentptr = 1 endif
          notag = $parse(uhp.line, currentptr, tagStart, delimend)
          if notag dp and skip != "Y" then $ctag($replace(x"0d", "<br />", notag)) endif
          if delimend = "<" then
-            $clear(tagtype, attName[], attValue[])
-            delim = " =>"
-            tagend = ">"
-            opentag = "<"
-            string = ""
-            delimend = ""
-            tempnum = 0
-            i = 0
-            do until delimEnd = ">"
-               string += $parse(uhp.line, currentptr, delim, delimEnd)
-               opentag += string + delimend
-               select delimEnd
-                  case " "    if currentptr < lineLen then
-                                 tagtype = $trim($uc(string))
-                                 delim = $replace(" ", "", delim)
-                                 if $find("/", string,1,"F") > 0 then tagend = "/" endif
-                                 $clear(string)
-                              else
-                                 gosub _NEXTLINE
-                              endif
-                              opentag += " "
-                  case "="    attName[++i] = $trim($uc(string))
-                              $clear(string)
-                              delim = wrap
-                  case "'"
-                    or x"22"  if tempnum > 0 then
-                                 attValue[i] = string
-                                 tempnum = 0
-                                 delim = "=>"
-                              else
-                                 tempnum++
-                                 delim = delimEnd
-                              endif
-                              $clear(string)
-                  case ">"    if tagtype !dp then tagtype = $trim($uc(string)) endif
-                              if $find("/", string,1,"F") > 0 then tagend = "/" endif
-               endselect
-            enddo
+            gosub _TAGPARSE
             gosub _TAGPROC
          endif
       enddo
    endif
 goback
 
+'-------------------------------------
+' Parse the tag parts
+'-------------------------------------
+_TAGPARSE:
+   $clear(tagtype, attName[], attValue[])
+   delim = " =>"
+   tagend = ">"
+   opentag = "<"
+   string = ""
+   delimend = ""
+   tempnum = 0
+   i = 0
+   do until delimEnd = ">"
+      string += $parse(uhp.line, currentptr, delim, delimEnd)
+      opentag += string + delimend
+      select delimEnd
+         case " "    if currentptr < lineLen then
+                        tagtype = $trim($uc(string))
+                        delim = $replace(" ", "", delim)
+                        if $find("/", string,1,"F") > 0 then tagend = "/" endif
+                        $clear(string)
+                     else
+                        gosub _NEXTLINE
+                     endif
+                     opentag += " "
+         case "="    attName[++i] = $trim($uc(string))
+                     $clear(string)
+                     delim = wrap
+         case "'"
+           or x"22"  if tempnum > 0 then
+                        attValue[i] = string
+                        tempnum = 0
+                        delim = "=>"
+                     else
+                        tempnum++
+                        delim = delimEnd
+                     endif
+                     $clear(string)
+         case ">"    if tagtype !dp then tagtype = $trim($uc(string)) endif
+                     if $find("/", string,1,"F") > 0 then tagend = "/" endif
+      endselect
+   enddo
+goback
 
 '-------------------------------------
 ' Process the uhp tag
 '-------------------------------------
 _TAGPROC:
    i = 2
+   tagtype = $replace("$", "", tagtype)
    select $uc(tagtype)
       case "INPUT"      gosub _INPUT
                         tagend = "/"
@@ -477,8 +541,9 @@ _TAGPROC:
                         tagend = "/"
       case "SCRIPT"     gosub _NOPARSE
       case "STYLE"      gosub _NOPARSE
-      case "HTML"
-        or "/HTML"      'do nothing
+      case "HTML"       gosub _VERPARSE
+'        or "$HTML"      gosub _VERPARSE
+      case "/HTML"      'do nothing
                         tagend = "/"
       case "HEAD"       skip = "Y"
                         gosub _NOPARSE
@@ -487,6 +552,7 @@ _TAGPROC:
       case other        $ctag(opentag)
                         tagend = "/"
    endselect
+   $style()    'reset the style to default for each element
    'go find the child tags if there are some
    if tagEnd = ">" then
       parentTag[++parentptr] = tagtype
@@ -514,25 +580,33 @@ goback
 
 '-------------------------------------
 '-------------------------------------
+_VERPARSE:
+   temp[1] = getAttVal("UHPVER", attName[], attValue[], varlist[], dotnote)
+   if temp[1] dp then version = temp[1] endif
+   select version
+      case < 4    tagStart = "<"
+      case 4      tagStart = "<$"
+   endselect
+   tagend = "/"
+goback
+
+'-------------------------------------
+'-------------------------------------
 _NOPARSE:
    if skip != "Y" then $ctag(opentag) endif
    tagtype = "</" + tagtype + ">"
+   if version = 4 then tagtype = $replace("</", "<$/", tagtype) endif
    string = $uc(uhp.line)                          'cache the upper case line because $find has issues with executable
    i = $find(tagtype, string, currentptr, "F")     'strings in argument 2 (seems to return partial matches)
-   if i = 0 then
+   do while i = 0
       i = linelen - currentptr
       string = $seg(uhp.line, currentptr, i)
-      i = 0
       if skip != "Y" then $ctag(string) endif
       gosub _NEXTLINE
-      do while i = 0
-         if skip != "Y" then $ctag(uhp.line) endif
-         gosub _NEXTLINE
-         string = $uc(uhp.line)
-         i = $find(tagtype, string, currentptr, "F")
-      enddo
-   endif
-   i += 9   'end of script
+      string = $uc(uhp.line)
+      i = $find(tagtype, string, currentptr, "F")
+   enddo
+   i += $len(tagtype)
    i = i - currentptr
    string = $seg(uhp.line, currentptr, i)
    if skip != "Y" then $ctag(string) endif
@@ -549,10 +623,10 @@ _INPUT:
    $clear(temp[], dotnote)
    gosub _MAPIN
    temp[1] = getAttVal("TYPE", attName[], attValue[], varlist[], dotnote)
-   string = getAttVal("ID", attName[], attValue[], varlist[], dotnote)
-   if string dp then
-      (void)$assignobj(string)
-   endif
+'   string = getAttVal("ID", attName[], attValue[], varlist[], dotnote)
+'   if string dp then
+'      (void)$assignobj(string)
+'   endif
    select $uc(temp[1])
       case "FILE"    'insert the rmi junk?
                      string = "<input type='file' id='" + string + "' ></input>"
@@ -734,7 +808,11 @@ _BODYTAG:
    temp[3] = getAttVal("CANCELOPT", attName[], attValue[], varlist[], dotnote)
    temp[4] = getAttVal("CANCELLABEL", attName[], attValue[], varlist[], dotnote)
    temp[5] = getAttVal("CLASS", attName[], attValue[], varlist[], dotnote)
+   temp[6] = getAttVal("UHPVER", attName[], attValue[], varlist[], dotnote)
    formname = getAttVal("NAME", attName[], attValue[], varlist[], dotnote)
+   if temp[6] dp then
+      version = temp[6]
+   endif
    if formname !dp then
       formname = $oper + $timenow
    endif
@@ -769,7 +847,7 @@ _TEXTBLOCK:
    temp[2] = getAttVal("COL", attName[], attValue[], varlist[], dotnote)
    temp[3] = getAttVal("ROW", attName[], attValue[], varlist[], dotnote)
    temp[4] = getAttVal("LIMIT", attName[], attValue[], varlist[], dotnote)
-   temp[5] = getAttVal("CLASS", attName[], attValue[], varlist[], dotnote)
+'   temp[5] = getAttVal("CLASS", attName[], attValue[], varlist[], dotnote)
    temp[6] = getAttVal("ID", attName[], attValue[], varlist[], dotnote)
    if temp[5] dp then 
       temp[5] = "class='" + temp[5] + "'" 
@@ -778,7 +856,8 @@ _TEXTBLOCK:
    if temp[6] dp then
       (void)$assignobj(temp[6])
    endif
-   $textblock(control[contptr], $casti(temp[3]), $casti(temp[2]), temp[5],,$casti(temp[4]))
+'   $textblock(control[contptr], $casti(temp[3]), $casti(temp[2]), temp[5],,$casti(temp[4]))
+   $textblock(control[contptr], $casti(temp[3]), $casti(temp[2]), ,,$casti(temp[4]))
 goback
 
 '-------------------------------------
@@ -811,7 +890,8 @@ _LITERAL:
    else
       saveVal[1] = temp[3]
    endif
-   $parsem($uc(temp[1]),1,"`",temp[11],,temp[12],temp[13],temp[14])
+   'edit type string == editname`empty`dstname`record layer`layer spacer`EDIT yes / no
+   $parsem($uc(temp[1]),1,"`",temp[11],,temp[12],temp[13],temp[14],temp[16])
    if temp[12] !dp then temp[12] = $uc(temp[2]) endif
    if $uc(temp[1]) = "SAC" then temp[1] = "SAM" endif 'make original implimentation compatable with system edits.
    if $uc(temp[1]) = "DB" then temp[1] = "DB``" + temp[2] endif
@@ -840,20 +920,23 @@ _LITERAL:
                         if temp[13] !dp then temp[13] = 1 endif
                         if temp[14] !dp then temp[14] = ", " endif
                         tempnum = 1 'set the layercounter
-                        (void)$dstlist(dstlist, $num(dstinfo[4]), dstname[], dstval[])
-                        if $dbread($num(dstinfo[4]), string, dstlist) > 1 then
+                        templib = $num(dstinfo[4])
+                        (void)$dstlist(dstlist, templib, dstname[], dstval[])
+                        if $dbread(templib, string, dstlist) > 1 then
                            temp[13] = tempnum
                         endif
                         do until tempnum++ = $num(temp[13])
                            if temp[13] = "ALL" then
                               if temp[15] dp and dstval[2] dp then temp[15] += temp[14] endif
+                              if temp[16] = "EDIT" then (void)$getEditMsg(dstval[2], dstinfo[14], dstval[2]) endif
                               temp[15] += dstval[2]
                            endif
-                           if $dbreadnextdst($num(dstinfo[4]), string, dstlist) > 1 then
+                           if $dbreadnextdst(templib, string, dstlist) > 1 then
                               temp[13] = tempnum
                            endif
                         enddo
                         if temp[15] dp and dstval[2] dp then temp[15] += temp[14] endif
+                        if temp[16] = "EDIT" then (void)$getEditMsg(dstval[2], dstinfo[14], dstval[2]) endif
                         string = temp[15] + dstval[2]
          case other     if temp[11] dp then (void)$getEditMsg(string, temp[1], string) endif
       endselect
@@ -970,7 +1053,8 @@ _LIBRARY:
          (void)$copyvar(copyptr, varptr)
       endif
    enddo
-   string = "<literal value='lib-return' />"
+   if version < 4 then string = "<" else string = "<$" endif
+   string += "literal value='lib-return' />"
    gosub _REPROC
 goback
 
@@ -1029,9 +1113,12 @@ goback
 '-------------------------------------
 _MAPIN:
    inputMap = getAttVal("UHP", attName[], attValue[], varlist[], dotnote)
+'   $parsem(inputmap, 1, "-", inputMap, temp[1], temp[2])
    temp[1] = getAttVal("IDX", attName[], attValue[], varlist[], dotnote)
+'   if temp[1] !dp then temp[1] = getAttVal("IDX", attName[], attValue[], varlist[], dotnote) endif
    idxptr = $num(temp[1])
    temp[2] = getAttVal("IDX2", attName[], attValue[], varlist[], dotnote)
+'   if temp[2] !dp then temp[2] = getAttVal("IDX2", attName[], attValue[], varlist[], dotnote) endif
    idx2ptr = $num(temp[2])
    varptr = findVar(inputMap, varlist[])
    if varptr > 0 then   'this is a variable from the main script
@@ -1049,6 +1136,7 @@ _MAPIN:
          temp[] = main[1,idxptr]
       endif
       string = "|" + $castx(idxptr) + "|" + $castx(idx2ptr) + "|"
+'      string = x"11" + $castx(idxptr) + x"11" + $castx(idx2ptr) + x"11"
       i = $find(string, map[varptr], 1, "P")
       if i > 0 then
          contptr = $num($parse(map[varptr,i], 1, "|"))
@@ -1061,6 +1149,12 @@ _MAPIN:
          control[contptr] = temp[]
       endif
    endif
+   'set the global attributes:
+   string = getAttVal("ID", attName[], attValue[], varlist[], dotnote)
+   if string dp then (void)$assignobj(string) endif
+   string = getAttVal("CLASS", attName[], attValue[], varlist[], dotnote)
+   if string dp then (void)$style(string) endif
+
 goback
 
 '-------------------------------------
@@ -1075,18 +1169,22 @@ _MAPOUT:
       i = 0
       do while i++ < $maxarray(map[varptr])
          $parsem(map[varptr,i],1,"|",temp[])
+'         $parsem(map[varptr,i],1,x"11",temp[])
          contptr = $num(temp[1])
          idxptr = $num(temp[2])
          idx2ptr = $num(temp[3])
          $clear(temp[],string) ',main[])
+         if control[contptr] dp then
+            control[contptr] = control[contptr]
+         endif
          temp[] = control[contptr]
          'if temp[] dp then
-            if temp[] !dp or temp[] = "" then 
+            if temp[] !dp then 'or temp[] = "" then 
                $clear(temp[]) $clear(string) 
             else
-               (void)$putds(temp[],string, x"00")
+               (void)$putds(temp[],string, x"a0")
                string = $checkoutput(string)
-               (void)$getds(temp[],string,x"00")
+               (void)$getds(temp[],string,x"a0")
             endif
             if idx2ptr > 0 then
                if idxptr > 0 then
