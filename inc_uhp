@@ -99,6 +99,12 @@
 '  ** Bug reported by Robert Edeker: Related to the 4.1 fix. _NOPARSE was duplicating the $ctag() of the 
 '     first line of the template that triggered the _NOPARSE routine.
 '  ~ Re worked the _NOPARSE routine ensure that each line only gets processed & $ctag()ed once.
+' Tim 12/11/2012 4.2.1 **Bug fix
+'  ** Bug found during testing: scripts and libraries that call inc_GetOption and inc_GetParm functions can override
+'        variables in this function. Specifically in this case the 'wrap' variable that defines the tag attribute 
+'        wrappers was getting overridden and messing up the parser. 
+'  ~ changed the generically named 'wrap' variable to: uhp_att_wrap. 
+'  TODO: additional generically named variables should also be reviewed.
 '-----------------------------------------------------------------------------------------
 'General Use Info:
 '
@@ -286,7 +292,7 @@ notag          is x     'not a uhp tag - sent to browser 'as is' from template
 attName[]      is x
 attValue[]     is x
 attWrap        is x
-wrap           is x
+uhp_att_wrap           is x
 delim          is x
 delimend       is x
 inputMap       is x     'value from tag attribute 'uhp' : name of variable to map to in main script
@@ -498,7 +504,7 @@ _TAGPARSE:
                      opentag += " "
          case "="    attName[++i] = $trim($uc(string))
                      $clear(string)
-                     delim = wrap
+                     delim = uhp_att_wrap
          case "'"
            or x"22"  if tempnum > 0 then
                         attValue[i] = string
@@ -847,7 +853,7 @@ _TEXTBLOCK:
    temp[2] = getAttVal("COL", attName[], attValue[], varlist[], dotnote)
    temp[3] = getAttVal("ROW", attName[], attValue[], varlist[], dotnote)
    temp[4] = getAttVal("LIMIT", attName[], attValue[], varlist[], dotnote)
-'   temp[5] = getAttVal("CLASS", attName[], attValue[], varlist[], dotnote)
+   temp[5] = getAttVal("CLASS", attName[], attValue[], varlist[], dotnote)
    temp[6] = getAttVal("ID", attName[], attValue[], varlist[], dotnote)
    if temp[5] dp then 
       temp[5] = "class='" + temp[5] + "'" 
@@ -856,8 +862,8 @@ _TEXTBLOCK:
    if temp[6] dp then
       (void)$assignobj(temp[6])
    endif
-'   $textblock(control[contptr], $casti(temp[3]), $casti(temp[2]), temp[5],,$casti(temp[4]))
-   $textblock(control[contptr], $casti(temp[3]), $casti(temp[2]), ,,$casti(temp[4]))
+   $textblock(control[contptr], $casti(temp[3]), $casti(temp[2]), temp[5],,$casti(temp[4]))
+'   $textblock(control[contptr], $casti(temp[3]), $casti(temp[2]), ,,$casti(temp[4]))
 goback
 
 '-------------------------------------
@@ -1152,8 +1158,8 @@ _MAPIN:
    'set the global attributes:
    string = getAttVal("ID", attName[], attValue[], varlist[], dotnote)
    if string dp then (void)$assignobj(string) endif
-   string = getAttVal("CLASS", attName[], attValue[], varlist[], dotnote)
-   if string dp then (void)$style(string) endif
+'   string = getAttVal("CLASS", attName[], attValue[], varlist[], dotnote)
+'   if string dp then (void)$style(string) endif
 
 goback
 
@@ -1333,6 +1339,6 @@ enddo
 findvar = varptr
 end findVar
 
-%preload wrap line-ending(none)
+%preload uhp_att_wrap line-ending(none)
 '"
 %endpreload
