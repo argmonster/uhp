@@ -52,6 +52,8 @@ v_att[]     is x
 l_att[]     is x
 v_recip[]   is x
 l_recip[]   is x
+v_proj[]    is x
+l_proj[]    is x
 
 l_group[]   is x
 r_group[]   is x
@@ -72,6 +74,7 @@ e.att       is x
 e.lof       is x
 e.type      is x
 e.usr.i2    is x
+e.proj      is x
 tempend     is t
 e.erkey[]   is x
 
@@ -131,7 +134,7 @@ b_lib[,]    is x
 'buttons
 b_addClt    is x
 b_rmClt[]   is x
-
+b_emcalc    is x
 class       is x
 
 grpnote     is x
@@ -154,6 +157,23 @@ d_starts    is x
 d_sdurs     is x
 d_cdurs     is x
 d_ends      is x
+d_em        is x
+
+'cpt variables
+cpt_src     is x
+cpt-lib     is b
+em_parts[]  is x
+em_form     is x
+ic_code     is x
+ic_value    is x
+ic_detail   is x
+ic_start    is x
+ic_dur      is x
+pt_code     is x
+pt_doc      is x
+pt_start    is x
+pt_end      is x
+pt_dur      is x
 
 
 rc          is b
@@ -241,6 +261,12 @@ do while 1 = 1
                   (void)$arrPush(client[], string)
                   gosub _READ
                endif
+            case b_emCalc
+               if cpt-lib dp then
+                  em_parts[1] = cpt-lib:patient.type(regid, e.date, "returntype`BIN;")
+                  cpt-lib:form.harness(,em_form,em_parts[])
+                  e.ser = em_parts[2]
+               endif
             case other
                i = $find("Y", b_tab[], 1, "F")
                if i > 0 then
@@ -307,7 +333,7 @@ return
 
 _PREFORM:
    u-note-lib.regid = regid
-   $clear(b_addclt, b_rmclt[], b_script[], b_lib[], b_tab[], b_draft[])
+   $clear(b_addclt, b_emcalc, b_rmclt[], b_script[], b_lib[], b_tab[], b_draft[])
    if grpnote = "Y" then
       $clear(l_group[])
       (void)$arrPush(l_group[], "<div id='eTable'>")
@@ -421,7 +447,7 @@ _VALIDATE:
       $clear(temp[])
       string = e.ser
       usr-lib:check_pne_rules(notetype, e.date, e.dur[1], e.cl.dur[1], e.start[1], string, e.ru,
-                      temp[], regid, e.loc, e.recip, e.att, "Y")
+                      temp[], regid, e.loc, e.recip, e.att, "Y", e.proj)
       e.usr.i2 = string
       if temp[] dp then
          (void)$putds(temp[], string, "|")
@@ -429,7 +455,7 @@ _VALIDATE:
          $clear(temp[])
       endif
       usr-lib:overlap_pne(temp[], e.ser, e.start[1], e.dur[1], e.date, e.staff, regid,
-                  notetype, e.erkey[1], e.recip, e.loc, e.att)
+                  notetype, e.erkey[1], e.recip, e.loc, e.att, e.proj)
       if temp[] dp then
          (void)$putds(temp[], string, "|")
          err[1] += "<li>" + $replace("|", "</li><li>", string) + "</li>"
@@ -475,16 +501,20 @@ _VALIDATE:
       else
          e.cl.dur[i] = e.dur[i]
          usr-lib:overlap_pne(temp[], e.ser, e.start[i], e.dur[i], e.date, e.staff, e.case.no[i],
-                     notetype, e.erkey[i], e.recip, e.loc, e.att)
+                     notetype, e.erkey[i], e.recip, e.loc, e.att, e.proj)
          if temp[] dp then
             (void)$putds(temp[], string, "|")
             err[i] += "<ul>" + err[i] + "<li>" + $replace("|", "</li><li>", string) + "</li></ul>"
          endif
       endif
    enddo
-   if err[] !dp then
+      if cpt-lib dp then
+         'do the cpt validations (only non group codes)
+         err[i] += cpt-lib:em.check(, em_parts[1], e.ser, e.start[1], e.end[1], pt_start, pt_end) 
+      endif
+'   if err[] !dp then
       call "PNESUPER" (regid, notetype, $operstaffid, e.lof, e.ser)
-   endif
+'   endif
 goback
 
 _SAVE:
@@ -597,14 +627,35 @@ _WRITEEVENT:
             $clear(e.usr.i2)
          endif
       endif
-      $isnrgfrom = "ISN"
-      e-lib:clearEr()
-      e-lib:putEventInfo(e.case.no[i], e.staff ,e.ser, e.ru,e.date ,e.dur[i],e.cl.dur[i],e.start[i],e.recip ,e.loc ,e.att,e.type,e.usr.i2,e.lof)
-      isn[i] = $isnkey
-      if snapid[i] dp then
-         rc = note-lib:isn.doc.add(parmfile, option, $isnkey, e.date, snapid[i])
-         if rc > 0 then
-            'issue saving isn
+      rc = 99
+      if cpt-lib dp then
+         rc =  cpt-lib:convert_codes(, "L", e.ser)
+      endif
+      if rc = 0
+         cpt-lib:Create_CPT_Event(e.date, e.staff, e.case.no[i], e.ru, e.ser, e.start[i], e.cl.dur[i], e.dur[i], e.loc, e.proj, e.recip, e.att, e.ser,,e.lof)
+         if pt_doc dp and pt_start dp and pt_end dp then
+            tempend = $time(pt_end) - $time(pt_start)
+            pt_dur = $fmt(tempend,"HH:MM")
+            pt_code = cpt-lib:pt.code()
+            cpt-lib:Create_CPT_Event(e.date, e.staff, e.case.no[i], e.ru, pt_code, pt_start, pt_dur, pt_dur, e.loc, e.proj, e.recip, e.att, pt_code,,e.lof)
+            'only do interactive for cpt codes.
+            if ic_value dp then
+               ic_code = cpt-lib:ic.code()
+               ic_start = $time(pt_start) + $time("0:01")
+               ic_dur = $time(pt_dur) - $time("0:01")
+               cpt-lib:Create_CPT_Event(e.date, e.staff, e.case.no[i], e.ru, ic_code, ic_start, ic_dur, ic_dur, e.loc, , e.recip, e.att, ic_code,,e.lof)
+            endif
+         endif
+      else
+         $isnrgfrom = "ISN"
+         e-lib:clearEr()
+         e-lib:putEventInfo(e.case.no[i], e.staff ,e.ser, e.ru,e.date ,e.dur[i],e.cl.dur[i],e.start[i],e.recip ,e.loc ,e.att,e.type,e.usr.i2,e.lof, e.proj)
+         isn[i] = $isnkey
+         if snapid[i] dp then
+            rc = note-lib:isn.doc.add(parmfile, option, $isnkey, e.date, snapid[i])
+            if rc > 0 then
+               'issue saving isn
+            endif
          endif
       endif
       'remove the planned event if there is one
@@ -616,15 +667,18 @@ goback
 
 _WRITEDBX:
    if save_to_dbx = "Y" then
-      dbx_string = snapid[i] + "|" + note + "|" + d_objinfo + "|" + d_txpinfo + "|" + d_txpsel + "|" + d_note
+      dbx_string = snapid[i] + "|" + note + "|" + d_objinfo + "|" + d_txpinfo + "|" + d_txpsel + "|" + d_note + "|" + d_em
+      $form("test")
+      $text(dbx_string)
+      $sendform(dbx_string)
       rc = $dbxinsert(clientdb, client[i], dbx_code1, dbx_code2, dbx_string, dbx_desc, 
                      $operstaffid, $castd(e.date), $castt(e.start[i]), $casti(e.ser) )
-      if rc > 0 then
+'      if rc > 0 then
          'handle dbx write error
          $brmsg($fmt(rc, "dbx NOT saved 99"), 1, "WEC")
-      else
+'      else
 '         $brmsg("dbx saved", 1, "WEC")
-      endif
+'      endif
    endif
 goback
 
@@ -676,6 +730,7 @@ _LOADDBX:
       txpinfo[] = draft.decode(d_txpinfo)
       c_txp[] = draft.decode(d_txpsel)
       g_note[] = draft.decode(d_note)
+      em_parts[] = draft.decode(d_em)
    else
       'handle load error
    endif
@@ -713,12 +768,13 @@ _DRAFT:
    d_cdurs  = draft.encode(e.cl.dur[])
    d_ends   = draft.encode(e.end[])
    d_note   = draft.encode(g_note[])
+   d_em     = draft.encode(em_parts[])
    draft_handle:dr_putDraftSx(clientDB, Suffix, RegID, Note, , 
                               $operstaffid, e.date, e.start[1], e.ser, e.RU, e.dur[1], 
                               e.cl.dur[1], e.Loc, , e.Recip, , 
-                              e.Att, , , , , , 
+                              e.Att, e.lof, e.proj, , , , 
                               , ParmFile, note, d_objinfo, d_txpinfo,d_txpsel,d_note,e.end[1],
-                              e.usr.i2, d_starts, d_sdurs, d_cdurs, d_ends) ', Var22,...,Var247)
+                              e.usr.i2, d_starts, d_sdurs, d_cdurs, d_ends, d_em) ', Var22,...,Var247)
 goback
 
 _LOAD:
@@ -731,9 +787,9 @@ _LOAD:
    endif
    draft_handle:dr_getDraftSx(clientDB, dr_Suffix[i], RegID, Note, , 
                               $operstaffid, e.date, e.start[1], e.ser, e.RU, e.dur[1], 
-                              e.cl.dur[1], e.Loc, , e.Recip, , e.Att, , , , , , 
+                              e.cl.dur[1], e.Loc, , e.Recip, , e.Att, e.lof, e.proj, , , , 
                               , ParmFile,note, d_objinfo,d_txpinfo, d_txpsel,d_note,e.end[1],
-                              e.usr.i2, d_starts, d_sdurs, d_cdurs, d_ends) ', Var22,...,Var247)
+                              e.usr.i2, d_starts, d_sdurs, d_cdurs, d_ends, d_em) ', Var22,...,Var247)
    objinfo[] = draft.decode(d_objinfo)
    txpinfo[] = draft.decode(d_txpinfo)
    c_txp[]   = draft.decode(d_txpsel)
@@ -742,6 +798,7 @@ _LOAD:
    d_cdurs   = draft.decode(e.cl.dur[])
    d_ends    = draft.decode(e.end[])
    g_note[]  = draft.decode(d_note)
+   em_parts[] = draft.decode(d_em[])
    suffix    = dr_suffix[i]
 goback
 
@@ -777,10 +834,14 @@ _INIT:
       note = baker_note
    endif
 
+   'required libraries
    (void)$loadlib(client-lib, "lib_CLIENT")
    (void)$loadlib(e-lib, "lib_EventIO")
    (void)$loadlib(note-lib, "lib_NOTES")
    (void)$loadlib(usr-lib, "lib_USREVENT")
+   
+   'optional library
+   'cpt_src = "lib_CPT"
    
    e.staff = $operstaffid
    clientdb = 2
@@ -829,12 +890,14 @@ _INIT:
          dbx_desc = parmfile
       endif
    endif
+   if cpt_src dp then (void)$loadlib(cpt-lib, cpt_src) endif
    $clear(v_sac[],l_sac[],v_ru[],l_ru[],v_loc[],l_loc[],v_att[],l_att[],v_recip[],l_recip[])
    usr-lib:rule.erdata.get(notetype,v_sac[],l_sac[],
                                     v_ru[],l_ru[],
                                     v_loc[],l_loc[],
                                     v_att[],l_att[],
-                                    v_recip[],l_recip[],"S")
+                                    v_recip[],l_recip[],"S",
+                                    v_proj[], l_proj[])
    
    if client-lib:pickClient(regid) > 0 then return endif
    if grpnote = "Y" then client[] = note-lib:group.get(regid)[] endif
