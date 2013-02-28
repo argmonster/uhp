@@ -1002,10 +1002,20 @@ _SNAPSHOT:
       temp[5] = string
    endif
    temp[6] = getAttVal("DBNUM", attName[], attValue[], varlist[], dotnote)
-   if temp[4] dp and temp[6] dp then
-      snap_handle:sn_CreateReport(temp[1], temp[2], temp[3], temp[4], temp[5], $num(temp[6]),,,temp[7],temp[8],temp[9]) 
+   if temp[10] = "LATEST" then
+      snaplib:sn_listsnap(value[], temp[5], $casti(temp[6]), temp[4],,,label[])
+      i = $maxarray(value[]) + 1
+      do while --i > 0 and label[i] != temp[4] enddo
+      if i > 0 then
+         temp[1] = $parse(value[i], 1, ".")
+         snap_handle:sn_viewsnap(temp[1], "bigreport")
+      else
+         $ctag("ERROR-Snapshot Not Found")
+      endif
    elseif temp[10] dp then
       snap_handle:sn_viewsnap(temp[10], "bigreport")
+   elseif temp[4] dp and temp[6] dp then
+      snap_handle:sn_CreateReport(temp[1], temp[2], temp[3], temp[4], temp[5], $num(temp[6]),,,temp[7],temp[8],temp[9]) 
    else
       $ctag("ERROR-Unable to Ready Snap Shot")
    endif
