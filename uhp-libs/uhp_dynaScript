@@ -93,7 +93,7 @@ if _render[] !dp or _forceRender = "Y" then
       endselect
       if match = "Y" then
          string = "<div class='" + _srcClass[i] + "' id='" + _srcId[i] + "'><$input type='submit' value='" + _srcBtnLabel[i] + "' uhp='" + _srcUhp[i] + "' idx='"
-                + _myhandle + "' idx2='" + _srcIdx[i] + "' classsel='" + _srcBtnClass[i] + "' classnotsel='" + _srcBtnClass[i] + "' /><div>"
+                + _myhandle + "' idx2='" + _srcIdx[i] + "' classsel='" + _srcBtnClass[i] + "' classnotsel='" + _srcBtnClass[i] + "' /></div>"
 '                + $myLibhandle + "' idx2='" + _srcIdx[i] + "' classsel='" + _srcBtnClass[i] + "' classnotsel='" + _srcBtnClass[i] + "' /><div>"
          (void)$arrPush(_render[], string)
          if _exitonmatch = "Y" then
