@@ -261,6 +261,7 @@ version        is n
 %define def_ver 3.3
 'set the current version constant
 %define cur_ver 4
+%define d_builocalpath "/cmhcbui/cmhcbuilocal"
  'template file variables
 uhp.path       is x     'path of the html template for processing
 uhp.handle     is b
@@ -449,7 +450,13 @@ _V4FIND:
          i -= currentptr
          notag = $seg(uhp.line, currentptr, i)
 '         $ctag(notag)
-         if notag dp and skip != "Y" then $ctag($replace(x"0d", "<br />", notag)) endif
+         if notag dp and skip != "Y" then 
+            notag = $replace(x"0d", "<br />", notag)
+            string = $replace("/", "", $sysname)
+            notag = $replace("$SYSNAME", string, notag)
+            notag = $replace("$LOCAL", d_builocalpath, notag)
+            $ctag(notag)
+         endif
          currentptr += i
          if currentptr < linelen then
             currentptr += 2
