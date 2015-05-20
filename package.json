@@ -1,0 +1,22 @@
+{
+  "name": "uhp",
+  "version": "4.2.1",
+  "description": "uhp",
+  "main": "deploy.js",
+  "directories": {
+    "example": "examples"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/argmonster/uhp.git"
+  },
+  "author": "Tim Markello",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/argmonster/uhp/issues"
+  },
+  "homepage": "https://github.com/argmonster/uhp",
+  "devDependencies": {
+    "mis-util": "^0.3.2"
+  }
+}
