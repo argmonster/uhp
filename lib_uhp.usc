@@ -1,0 +1,33 @@
+%define d_localformpath "/CUST/forms/"
+%define d_globalformpath "/c0/forms/"
+library lib_uhp()
+
+function checkfile(path) is x
+path     is x
+full     is x
+
+if $charx(path, 1) = "/" then
+   checkfile = path
+   return
+endif
+
+full = $sysname + "/PARM/" + path
+if $checkfile(full) = 0 then
+   checkfile = path
+   return
+endif
+
+
+full = $sysname + d_localformpath + path
+if $checkfile(full) = 0 then
+   checkfile = full
+   return
+endif
+
+full = d_globalformpath + path
+if $checkfile(full) = 0 then
+   checkfile = full
+   return
+endif
+
+end checkfile
